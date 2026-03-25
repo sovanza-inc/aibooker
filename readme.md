@@ -608,153 +608,80 @@ model AnalyticsDaily {
 
 ## 3. Phased Implementation Roadmap
 
-### Phase 0: Foundation (Week 1-2)
+### Phase 1: Foundation + Integration + Webhooks (Week 1-2)
 
-**Goal**: Monorepo scaffolding, database, basic API skeleton, CI pipeline.
+**Goal**: Monorepo up, Jimani can activate and push data, search + ranking works.
 
 | Task | Details | Owner |
 |------|---------|-------|
-| Monorepo setup | pnpm workspaces + Turborepo, tsconfig inheritance | Dev A |
-| Docker Compose | PostgreSQL 16 + Redis 7 for local dev | Dev A |
-| Prisma schema | Full schema as above, initial migration | Dev B |
+| Monorepo setup | pnpm workspaces + Turborepo, Docker Compose (PG 16 + Redis 7), CI pipeline | Dev A |
+| Prisma schema + shared package | Full schema, migration, types, constants, error codes | Dev B |
 | API skeleton | Fastify app, health endpoint, config loader, Pino logger | Dev A |
 | Dashboard skeleton | Next.js 14 App Router, Tailwind, shadcn/ui init | Dev B |
-| CI pipeline | GitHub Actions: lint, typecheck, test, build | Dev A |
-| Shared package | Types, constants, error codes | Dev B |
+| Integration activation | `POST /v1/integrations/activate` + `/validate` (Layer 1) | Dev A |
+| Webhook auth + receivers | HMAC-SHA256 middleware, all 5 webhook routes with Zod validation (Layer 1 + 3) | Dev B |
+| Webhook processing | BullMQ queue, idempotency, payload mapping, DB upserts, webhook log | Dev A |
+| Jimani connector (read) | `GET /restaurants/{id}` client + mapper | Dev B |
+| Search + ranking service | Filter by city/cuisine/time/partySize/tags, relevance + quality + ad_boost scoring, geo distance | Dev A |
+| AI tool auth + search endpoint | Bearer token per platform, `POST /v1/ai/search`, response formatting | Dev B |
+| Integration tests | Jimani activation + webhook push + search returns ranked results | Both |
 
-**Exit criteria**: `pnpm dev` starts both apps. `GET /health` returns 200. Dashboard shows blank shell. DB migrated.
+**Exit criteria**: `pnpm dev` starts both apps. Jimani data flows in via webhooks. `POST /v1/ai/search` returns scored + sorted results.
 
-### Phase 1: Integration + Webhooks (Week 3-4)
+### Phase 2: Booking Flow + AI Platform Integration (Week 3-4)
 
-**Goal**: Jimani can activate and push data to AiBooker.
-
-| Task | Details | Owner |
-|------|---------|-------|
-| Integration activation endpoint | `POST /v1/integrations/activate` -- creates Integration + Provider | Dev A |
-| Integration validation endpoint | `POST /v1/integrations/validate` -- heartbeat/status check | Dev A |
-| Webhook auth middleware | HMAC-SHA256 signature verification | Dev A |
-| Webhook receiver endpoints | All 5 webhook routes with Zod validation | Dev B |
-| Webhook processing service | Idempotency check, payload mapping, DB upserts | Dev B |
-| BullMQ setup | Redis-backed queue for async webhook processing | Dev A |
-| Jimani connector (read) | `GET /restaurants/{id}` client implementation | Dev B |
-| Webhook log table | Audit trail with status tracking | Dev A |
-| Integration tests | Simulate Jimani activation + webhook push | Both |
-
-**Exit criteria**: Jimani test payload creates a provider with location, booking types, and availability slots in DB.
-
-### Phase 2: Search + Ranking Engine (Week 5-6)
-
-**Goal**: AI platforms can search restaurants and get ranked results.
+**Goal**: End-to-end booking with hold, partner handoff, AI function calling specs.
 
 | Task | Details | Owner |
 |------|---------|-------|
-| Search service | Filter by city/cuisine/time/partySize/tags | Dev A |
-| Ranking service | Relevance + quality + ad_boost scoring | Dev A |
-| AI tool auth middleware | Bearer token per AI platform | Dev B |
-| AI tool endpoints | `POST /v1/ai/search` | Dev B |
-| Geo distance calculation | Haversine formula for location-based ranking | Dev A |
-| Campaign lookup in ranking | Fetch active campaigns, compute ad_boost | Dev A |
-| Response formatting | JSON schema matching AI function calling format | Dev B |
-| Search performance | Ensure <200ms P95 for search queries | Dev A |
-| Unit tests for ranking | Verify score calculations | Both |
-
-**Exit criteria**: `POST /v1/ai/search` with filters returns scored + sorted restaurant list. Sponsored results labeled.
-
-### Phase 3: Availability + Booking (Week 7-8)
-
-**Goal**: End-to-end booking flow works (payment handled by partner).
-
-| Task | Details | Owner |
-|------|---------|-------|
-| Availability check | `POST /v1/ai/availability` -- local slot check + live Jimani check | Dev A |
-| Jimani availability connector | `POST /v1/aibooker/availability/check` client | Dev A |
-| Booking creation | `POST /v1/ai/book` -- creates booking + calls Jimani | Dev B |
-| Jimani booking connector | `POST /v1/aibooker/bookings` client | Dev B |
+| Jimani availability connector | `POST /v1/aibooker/availability/check` (Layer 2) — alternative time slots | Dev A |
+| Jimani booking connector | `POST /v1/aibooker/bookings` (Layer 2) — source attribution (campaign_type, click_id, lead_id) | Dev B |
+| Availability check endpoint | `POST /v1/ai/availability` — local slot check + live Jimani check | Dev B |
+| Booking creation + hold | `POST /v1/ai/book` — 300s TTL hold + partner handoff, customer lead dedup | Dev A |
 | Booking status endpoint | `GET /v1/ai/booking-status` | Dev B |
-| Booking status webhook | Process `booking-updated` webhook from Jimani | Dev A |
-| Customer lead service | Create/dedup leads by email/phone | Dev B |
-| Booking cancellation | `DELETE` via connector | Dev A |
-| Integration tests | Full flow: search -> availability -> book -> confirm | Both |
-
-**Exit criteria**: Booking created in AiBooker DB + forwarded to Jimani. Status synced back via webhook.
-
-### Phase 4: Booking Hold + Partner Handoff (Week 9-10)
-
-**Goal**: End-to-end booking with hold mechanism and partner-side payment/email.
-
-| Task | Details | Owner |
-|------|---------|-------|
-| Booking hold mechanism | 300s TTL hold on slot, holdExpiry scheduler | Dev A |
-| Partner booking handoff | Forward booking to partner, partner handles payment + email | Dev B |
-| Booking status webhook | Process `booking-updated` from partner (confirmed/cancelled) | Dev A |
-| Email status webhook | Process `booking-email-updated` for tracking | Dev B |
 | Hold expiry scheduler | Release expired holds every 30s, restore capacity | Dev A |
-| Booking cancellation flow | Cancel in AiBooker + notify partner connector | Dev B |
-| Integration tests | Full flow: book -> hold -> partner confirm/reject -> status sync | Both |
+| Availability polling | 5-min polling scheduler to supplement webhooks | Dev A |
+| Campaign lookup in ranking | Fetch active campaigns, compute ad_boost | Dev B |
+| OpenAI + Gemini specs | Function calling schemas for all 4 tools, Actions config, response optimization | Dev A |
+| Rate limiting per platform | Separate limits for AI platforms, dashboard, webhooks | Dev B |
+| Integration tests | Full flow: search → availability → hold → book → partner confirm/reject → status | Both |
 
-**Exit criteria**: Booking created with hold, forwarded to partner. Partner confirms/rejects via webhook. Expired holds auto-released.
+**Exit criteria**: Full booking loop works. OpenAI Actions + Gemini function declarations validated. Holds expire correctly.
 
-### Phase 5: Partner Dashboard (Week 11-13)
+### Phase 3: Partner Dashboard (Week 5-6)
 
-**Goal**: Restaurants can onboard, manage profiles, view analytics.
+**Goal**: Restaurants onboard via Jimani, manage profiles, run campaigns, view analytics.
 
 | Task | Details | Owner |
 |------|---------|-------|
-| Dashboard auth | Magic link or password login for providers | Dev B |
-| Onboarding flow | Stepper: Business info -> Booking types -> Media -> Go live | Dev B |
-| Profile management (Tab 1) | Name, cuisine, description, location, tags, contact | Dev B |
-| Booking types (Tab 2) | List/edit booking types, per-type media & settings | Dev B |
-| Media upload | S3/R2 upload with presigned URLs | Dev A |
-| Bookings list | Table with filters, status badges | Dev B |
-| Campaign management | CRUD for campaigns with bid/budget config | Dev A |
+| Dashboard auth | Magic link continuation from Jimani (15-min token) + email/password login | Dev B |
+| Onboarding flow | 3-step stepper: Verify business info → Configure booking types + media → Go live | Dev B |
+| Profile management | Business info (editable), location (editable), tags (editable), booking types (read-only from partner except description/media) | Dev B |
+| Media upload | S3/R2 presigned URL upload, drag-and-drop, per-booking-type images | Dev A |
+| Bookings list + detail | Paginated table with filters, status badges, booking detail view | Dev B |
+| Campaign management | CRUD for campaigns with CPC/CPA bid + budget config | Dev A |
 | Analytics overview | Charts: impressions, clicks, bookings, revenue, ad spend | Dev A |
 | Dashboard API endpoints | Provider CRUD, campaign CRUD, analytics queries | Dev A |
+| Integration tests | Onboarding flow, profile save, campaign creation | Both |
 
-**Exit criteria**: Restaurant completes onboarding through dashboard. Can manage profile, view bookings, create campaigns.
+**Exit criteria**: Restaurant completes onboarding. Can manage profile, view bookings, create campaigns.
 
-### Phase 6: AI Platform Integration (Week 14-15)
+### Phase 4: Zenchef + Hardening + Launch (Week 7)
 
-**Goal**: OpenAI and Gemini can call AiBooker via function calling.
-
-| Task | Details | Owner |
-|------|---------|-------|
-| OpenAI function spec | JSON schema for `search_restaurants`, `check_availability`, `create_booking`, `get_booking_status` | Dev A |
-| Gemini function spec | Same functions in Gemini format | Dev A |
-| OpenAI plugin manifest | `ai-plugin.json` or Actions schema for ChatGPT | Dev B |
-| Response optimization | Concise JSON that AI can present naturally | Dev B |
-| Rate limiting per platform | Separate rate limits for OpenAI vs Gemini | Dev A |
-| Analytics tracking | Track which AI platform generated each impression/booking | Dev B |
-| End-to-end testing | Simulate AI function calls through full flow | Both |
-
-**Exit criteria**: OpenAI Actions config validated. Gemini function declarations work. Full booking loop via simulated AI calls.
-
-### Phase 7: Zenchef Connector (Week 16-17)
-
-**Goal**: Second connector for Zenchef.
+**Goal**: Second connector, production-ready, UAT.
 
 | Task | Details | Owner |
 |------|---------|-------|
-| Zenchef webhook mapping | Map Zenchef payloads to AiBooker models | Dev A |
-| Zenchef API client | Availability check + booking creation | Dev B |
+| Zenchef connector | Webhook mapping + API client (availability check + booking) | Dev A + B |
 | Connector factory | Resolve correct connector based on `integration.source` | Dev A |
-| Integration tests | Full flow through Zenchef | Both |
-
-**Exit criteria**: Zenchef restaurants searchable, bookable through same AI endpoints.
-
-### Phase 8: Hardening + Launch Prep (Week 18-19)
-
-**Goal**: Production-ready.
-
-| Task | Details | Owner |
-|------|---------|-------|
-| Load testing | k6 scripts for search, availability, booking endpoints | Dev A |
-| Security audit | OWASP top 10 review, dependency audit | Dev B |
-| Monitoring | Structured logs, health checks, uptime alerts | Dev A |
-| Error tracking | Sentry integration | Dev B |
-| Rate limiting tuning | Based on load test results | Dev A |
-| Documentation | API docs, runbooks, onboarding guide for partners | Both |
-| Staging deployment | Full stack on staging environment | Dev A |
+| Load testing + security audit | k6 scripts, OWASP review, `pnpm audit` | Dev A |
+| Monitoring + error tracking | Pino structured logs, Sentry, UptimeRobot, alerting | Dev B |
+| Staging deployment | Full stack on staging, documentation (OpenAPI, runbooks) | Dev A |
 | UAT with Jimani | Test with real Jimani test environment | Both |
+
+**Exit criteria**: Both connectors working. Staging deployed. Load tested. Security audited. Ready for production.
+
+**Total timeline: 7 weeks.**
 
 ---
 
@@ -1076,6 +1003,47 @@ export const webhookWorker = new Worker('webhooks', processWebhook, {
   limiter: { max: 100, duration: 1000 }, // Max 100 jobs/sec
 });
 ```
+
+### Jimani ↔ AiBooker Endpoint Matrix (from Miro)
+
+The integration between Jimani and AiBooker is organized into **3 layers**:
+
+#### Layer 1: Onboarding & Sync (Jimani → AiBooker)
+
+| Endpoint | Method | Direction | Description | Phase 1 |
+|----------|--------|-----------|-------------|---------|
+| `/v1/integrations/activate` | POST | Jimani → AiBooker | Jimani activates integration, sends secure token + restaurant external ID. AiBooker creates Integration + Provider. | Mandatory |
+| `/v1/integrations/validate` | POST | Jimani → AiBooker | Heartbeat/status check to verify integration is still active. | Mandatory |
+| `/v1/webhooks/provider-updated` | POST | Jimani → AiBooker | Push restaurant profile data (name, contact, location, cuisine, tags). Frequency: on change or hourly. | Mandatory |
+| `/v1/webhooks/booking-types-updated` | POST | Jimani → AiBooker | Push booking types (lunch, dinner, private dining) with party size ranges, duration, settings. | Mandatory |
+| `/v1/webhooks/availability-updated` | POST | Jimani → AiBooker | Push availability slots (date, timeslots, capacity, max party size). Frequency: every 5 minutes or on change. | Mandatory |
+
+#### Layer 2: Transaction Flow (AiBooker → Jimani)
+
+| Endpoint (on Jimani) | Method | Direction | Description | Phase 1 |
+|----------------------|--------|-----------|-------------|---------|
+| `POST /v1/aibooker/availability/check` | POST | AiBooker → Jimani | Real-time availability check for a specific restaurant, date, time, party size. Returns available=true/false + alternative time slots. | Mandatory |
+| `POST /v1/aibooker/bookings` | POST | AiBooker → Jimani | Create booking with customer details (name, email, phone, language), party size, date/time, special requests, and source attribution (campaign_type, click_id, lead_id). Jimani handles payment + email confirmation. | Mandatory |
+| `GET /v1/aibooker/bookings/{id}` | GET | AiBooker → Jimani | Retrieve booking details by external booking ID. | Optional (Phase 2) |
+| `DELETE /v1/aibooker/bookings/{id}` | DELETE | AiBooker → Jimani | Cancel an existing booking. | Optional (Phase 2) |
+
+#### Layer 3: Feedback Loop (Jimani → AiBooker)
+
+| Endpoint | Method | Direction | Description | Phase 1 |
+|----------|--------|-----------|-------------|---------|
+| `/v1/webhooks/booking-updated` | POST | Jimani → AiBooker | Booking status changed (confirmed, cancelled, no_show, completed). Includes external booking ID mapping. | Mandatory |
+| `/v1/webhooks/booking-email-updated` | POST | Jimani → AiBooker | Email confirmation sent/delivered/failed status. For tracking/analytics only (partner handles sending). | Optional (Phase 2) |
+
+#### Update Frequencies (from Miro)
+
+| Data Type | Push Frequency | Notes |
+|-----------|---------------|-------|
+| Restaurant profile | On change or hourly | Name, contact, location, cuisine |
+| Booking types | On change | Lunch, dinner, private dining config |
+| Availability slots | Every 5 minutes or on change | Timeslots, capacity, party sizes |
+| Booking status | Real-time (on change) | Confirmed, cancelled, etc. |
+
+---
 
 ### Webhook Payload Mapping
 

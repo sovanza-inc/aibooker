@@ -16,9 +16,13 @@ import useSWR from 'swr';
 import { useSession, signOut as nextAuthSignOut } from 'next-auth/react';
 
 const fetcher = async (url: string) => {
-  const r = await fetch(url);
-  if (!r.ok) return null;
-  return r.json();
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return undefined;
+    return await r.json();
+  } catch {
+    return undefined;
+  }
 };
 
 const navItems = [
@@ -158,28 +162,28 @@ function ProviderNav() {
 export default function ProviderLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: provider, isLoading } = useSWR('/api/providers/me', fetcher);
+  const { data: provider, isLoading, error } = useSWR('/api/providers/me', fetcher);
+  const [checked, setChecked] = useState(false);
 
   const isOnboarding = pathname === '/onboarding';
+  const hasProvider = provider && provider.id;
 
   useEffect(() => {
-    if (!isLoading && !provider && !isOnboarding) {
-      router.replace('/onboarding');
+    if (isLoading) return;
+    if (!hasProvider && !isOnboarding) {
+      window.location.href = '/onboarding';
+      return;
     }
-  }, [isLoading, provider, isOnboarding, router]);
+    setChecked(true);
+  }, [isLoading, hasProvider, isOnboarding]);
 
-  // While loading, show nothing to prevent flash
-  if (isLoading) {
+  // While loading or redirecting, show spinner
+  if (!checked && !isOnboarding) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
       </div>
     );
-  }
-
-  // If no provider and not on onboarding, don't render (redirect is happening)
-  if (!provider && !isOnboarding) {
-    return null;
   }
 
   // On the onboarding page, show a minimal layout (no nav)

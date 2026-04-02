@@ -136,7 +136,8 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   const newUser: NewUser = {
     email,
     passwordHash,
-    role: 'owner' // Default role, will be overridden if there's an invitation
+    role: 'provider',
+    authProvider: 'credentials',
   };
 
   const [createdUser] = await db.insert(users).values(newUser).returning();
@@ -217,16 +218,16 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   await Promise.all([
     db.insert(teamMembers).values(newTeamMember),
     logActivity(teamId, createdUser.id, ActivityType.SIGN_UP),
-    setSession(createdUser)
   ]);
 
+  // Redirect to sign-in — next-auth will handle the session
   const redirectTo = formData.get('redirect') as string | null;
   if (redirectTo === 'checkout') {
     const priceId = formData.get('priceId') as string;
     return createCheckoutSession({ team: createdTeam, priceId });
   }
 
-  redirect('/overview');
+  redirect('/sign-in?registered=true');
 });
 
 export async function signOut() {

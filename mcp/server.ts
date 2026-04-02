@@ -20,7 +20,11 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
+import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { searchProviders, getProviderAvailability, createBookingWithHold, getBookingStatus, expireHeldBookings } from '../lib/ai/queries.js';
+import { db } from '../lib/db/drizzle.js';
+import { providers, providerLocations } from '../lib/db/schema.js';
+import { eq } from 'drizzle-orm';
 
 dotenv.config();
 
@@ -251,6 +255,82 @@ server.resource(
 );
 
 // --------------------------------------------------------------------------
+// Resource: Provider Detail
+// --------------------------------------------------------------------------
+
+server.resource(
+  'provider-detail',
+  new ResourceTemplate('aibooker://providers/{id}', { list: undefined }),
+  {
+    description: 'Detailed provider info including business fields',
+    mimeType: 'application/json',
+  },
+  async (uri, params) => {
+    const providerId = Number(params.id);
+    if (isNaN(providerId)) {
+      return { contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify({ error: 'Invalid provider ID' }) }] };
+    }
+
+    const [provider] = await db
+      .select()
+      .from(providers)
+      .where(eq(providers.id, providerId))
+      .limit(1);
+
+    if (!provider) {
+      return { contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify({ error: 'Provider not found' }) }] };
+    }
+
+    const [location] = await db
+      .select()
+      .from(providerLocations)
+      .where(eq(providerLocations.providerId, providerId))
+      .limit(1);
+
+    const detail = {
+      id: provider.id,
+      name: provider.name,
+      slug: provider.slug,
+      description: provider.description,
+      cuisine_type: provider.cuisineType,
+      tags: provider.tags,
+      price_range: provider.priceRange,
+      rating: provider.rating,
+      phone: provider.phone,
+      email: provider.email,
+      website: provider.website,
+      about_company: provider.aboutCompany,
+      what_is_this_business: provider.whatIsThisBusiness,
+      what_can_i_book_here: provider.whatCanIBookHere,
+      when_should_recommend: provider.whenShouldRecommend,
+      best_for: provider.bestFor,
+      atmosphere: provider.atmosphere,
+      what_makes_unique: provider.whatMakesUnique,
+      popular_dishes: provider.popularDishes,
+      when_should_choose: provider.whenShouldChoose,
+      when_should_not_choose: provider.whenShouldNotChoose,
+      target_audience: provider.targetAudience,
+      location: location ? {
+        street_address: location.streetAddress,
+        city: location.city,
+        postal_code: location.postalCode,
+        country: location.country,
+        latitude: location.latitude,
+        longitude: location.longitude,
+      } : null,
+    };
+
+    return {
+      contents: [{
+        uri: uri.href,
+        mimeType: 'application/json',
+        text: JSON.stringify(detail, null, 2),
+      }],
+    };
+  }
+);
+
+// --------------------------------------------------------------------------
 // HTTP Server
 // --------------------------------------------------------------------------
 
@@ -298,6 +378,7 @@ app.listen(PORT, '0.0.0.0', () => {
 ║                                          ║
 ║  Resources:                              ║
 ║   • aibooker://providers                 ║
+║   • aibooker://providers/{id}            ║
 ╚══════════════════════════════════════════╝
   `);
 });

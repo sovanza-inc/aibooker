@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import useSWR from 'swr';
 import { UtensilsCrossed, Pencil, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -39,9 +40,10 @@ export default function BookingTypesPage() {
   );
 
   async function handleToggle(bt: BookingType) {
+    const newActive = !bt.isActive;
     // Optimistic update
     const updated = data?.map((item) =>
-      item.id === bt.id ? { ...item, isActive: !item.isActive } : item
+      item.id === bt.id ? { ...item, isActive: newActive } : item
     );
     mutate(updated, false);
 
@@ -49,13 +51,15 @@ export default function BookingTypesPage() {
       const res = await fetch(`/api/providers/me/booking-types/${bt.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: !bt.isActive }),
+        body: JSON.stringify({ isActive: newActive }),
       });
       if (!res.ok) throw new Error('Failed to update');
       mutate();
+      toast.success(`${bt.name} ${newActive ? 'activated' : 'deactivated'}`);
     } catch {
       // Revert on error
       mutate();
+      toast.error('Failed to update booking type');
     }
   }
 

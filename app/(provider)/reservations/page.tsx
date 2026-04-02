@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import useSWR from "swr";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -98,6 +99,7 @@ export default function ReservationsPage() {
   const [statusFilter, setStatusFilter] = useState(ALL);
   const [platformFilter, setPlatformFilter] = useState(ALL);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<Reservation | null>(null);
 
   // Build query string
   const params = new URLSearchParams();
@@ -131,8 +133,9 @@ export default function ReservationsPage() {
           throw new Error(body?.error ?? "Action failed");
         }
         await mutate();
+        toast.success(action === "confirm" ? "Booking confirmed" : "Booking cancelled");
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Something went wrong");
+        toast.error(err instanceof Error ? err.message : "Action failed");
       } finally {
         setActionLoading(null);
       }
@@ -303,6 +306,13 @@ export default function ReservationsPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedBooking(r)}
+                          >
+                            View
+                          </Button>
                           {r.status === "pending" && (
                             <Button
                               size="sm"
@@ -335,6 +345,134 @@ export default function ReservationsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Booking Detail Modal */}
+      {selectedBooking && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setSelectedBooking(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Booking Details
+              </h2>
+              <button
+                onClick={() => setSelectedBooking(null)}
+                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500">Customer Name</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {selectedBooking.customerFirstName} {selectedBooking.customerLastName}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Status</p>
+                  <Badge className={statusBadgeClass(selectedBooking.status)}>
+                    {capitalize(selectedBooking.status)}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Email</p>
+                  <p className="text-sm text-gray-900">
+                    {selectedBooking.customerEmail || "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Phone</p>
+                  <p className="text-sm text-gray-900">
+                    {selectedBooking.customerPhone || "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Date</p>
+                  <p className="text-sm text-gray-900">
+                    {formatDate(selectedBooking.date)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Time</p>
+                  <p className="text-sm text-gray-900">{selectedBooking.time}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Party Size</p>
+                  <p className="text-sm text-gray-900">{selectedBooking.partySize}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Booking Type</p>
+                  <p className="text-sm text-gray-900">
+                    {selectedBooking.bookingTypeName || "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">AI Platform</p>
+                  <p className="text-sm text-gray-900">
+                    {platformLabel[selectedBooking.aiPlatform] ?? selectedBooking.aiPlatform}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">External Booking ID</p>
+                  <p className="text-sm text-gray-900">
+                    {selectedBooking.externalBookingId || "-"}
+                  </p>
+                </div>
+              </div>
+              {selectedBooking.specialRequests && (
+                <div>
+                  <p className="text-xs text-gray-500">Special Requests</p>
+                  <p className="text-sm text-gray-900 mt-1">
+                    {selectedBooking.specialRequests}
+                  </p>
+                </div>
+              )}
+              <div className="border-t pt-4 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500">Created</p>
+                  <p className="text-sm text-gray-900">
+                    {selectedBooking.createdAt
+                      ? new Date(selectedBooking.createdAt).toLocaleString()
+                      : "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Confirmed</p>
+                  <p className="text-sm text-gray-900">
+                    {selectedBooking.confirmedAt
+                      ? new Date(selectedBooking.confirmedAt).toLocaleString()
+                      : "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Cancelled</p>
+                  <p className="text-sm text-gray-900">
+                    {selectedBooking.cancelledAt
+                      ? new Date(selectedBooking.cancelledAt).toLocaleString()
+                      : "-"}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setSelectedBooking(null)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

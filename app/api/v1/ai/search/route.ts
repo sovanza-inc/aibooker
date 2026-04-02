@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getApiKeyFromRequest, getAiPlatformFromRequest, unauthorizedResponse } from '@/lib/ai/auth';
 import { validateApiKey, searchProviders } from '@/lib/ai/queries';
+import { checkRateLimit } from '@/lib/ai/rate-limit';
 
 const searchSchema = z.object({
   city: z.string().max(255).optional(),
@@ -11,6 +12,8 @@ const searchSchema = z.object({
   party_size: z.number().int().min(1).max(50).optional(),
   query: z.string().max(500).optional(),
   limit: z.number().int().min(1).max(20).optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -21,6 +24,10 @@ export async function POST(request: NextRequest) {
 
     const integration = await validateApiKey(apiKey);
     if (!integration) return unauthorizedResponse('Invalid API key');
+
+    if (!checkRateLimit(apiKey, 100, 60000)) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+    }
 
     // Parse body
     const raw = await request.json();
@@ -38,6 +45,8 @@ export async function POST(request: NextRequest) {
       partySize: parsed.data.party_size,
       query: parsed.data.query,
       limit: parsed.data.limit,
+      latitude: parsed.data.latitude,
+      longitude: parsed.data.longitude,
     });
 
     return NextResponse.json({
@@ -58,6 +67,7 @@ export async function POST(request: NextRequest) {
           latitude: r.latitude,
           longitude: r.longitude,
         },
+        distance_km: (r as any).distance ?? null,
         has_availability: r.hasAvailability,
         available_slots: r.availableSlots.map((s: any) => ({
           time: s.startTime,

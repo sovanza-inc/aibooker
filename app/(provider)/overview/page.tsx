@@ -56,6 +56,7 @@ interface StatsData {
   todayCount: number;
   upcomingCount: number;
   totalBookings: number;
+  todayCapacity: number;
   todayHours: string;
   platformStats: PlatformStat[];
   weeklyBookings: WeeklyBooking[];
@@ -140,8 +141,14 @@ export default function OverviewPage() {
     },
     {
       title: "Fill rate",
-      value: stats.totalBookings > 0 ? "Active" : "No data",
-      label: stats.totalBookings > 0 ? `${stats.totalBookings} total` : "",
+      value:
+        stats.todayCapacity > 0
+          ? `${Math.round((stats.todayCount / stats.todayCapacity) * 100)}%`
+          : "N/A",
+      label:
+        stats.todayCapacity > 0
+          ? `${stats.todayCount} / ${stats.todayCapacity} slots`
+          : "No slots today",
     },
   ];
 

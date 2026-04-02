@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getApiKeyFromRequest, unauthorizedResponse } from '@/lib/ai/auth';
 import { validateApiKey, getBookingStatus } from '@/lib/ai/queries';
+import { checkRateLimit } from '@/lib/ai/rate-limit';
 
 const statusSchema = z.object({
   booking_id: z.number().int().positive(),
@@ -14,6 +15,10 @@ export async function POST(request: NextRequest) {
 
     const integration = await validateApiKey(apiKey);
     if (!integration) return unauthorizedResponse('Invalid API key');
+
+    if (!checkRateLimit(apiKey, 100, 60000)) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+    }
 
     const raw = await request.json();
     const parsed = statusSchema.safeParse(raw);

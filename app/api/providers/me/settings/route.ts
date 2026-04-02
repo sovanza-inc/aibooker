@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProviderForUser, updateProviderSettings, updateProviderLocation } from '@/lib/db/provider-queries';
+import { getAuthenticatedUser } from '@/lib/auth/api-auth';
 import { z } from 'zod';
 
 const settingsSchema = z.object({
@@ -37,6 +38,9 @@ const settingsSchema = z.object({
 
 export async function PUT(request: NextRequest) {
   try {
+    const user = await getAuthenticatedUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const provider = await getProviderForUser();
     if (!provider) {
       return NextResponse.json({ error: 'Provider not found' }, { status: 404 });

@@ -153,12 +153,26 @@ export async function getProviderStats(providerId: number) {
     .from(bookings)
     .where(eq(bookings.providerId, providerId));
 
+  // Today's total slot capacity for fill rate
+  const [todayCapacityResult] = await db
+    .select({ total: sql<number>`coalesce(sum(${availabilitySlots.capacity}), 0)` })
+    .from(availabilitySlots)
+    .innerJoin(bookingTypes, eq(availabilitySlots.bookingTypeId, bookingTypes.id))
+    .where(
+      and(
+        eq(bookingTypes.providerId, providerId),
+        gte(availabilitySlots.date, today),
+        lte(availabilitySlots.date, tomorrow)
+      )
+    );
+
   const totalPlatform = platformStats.reduce((sum, p) => sum + Number(p.count), 0);
 
   return {
     todayCount: Number(todayCount?.count || 0),
     upcomingCount: Number(upcomingCount?.count || 0),
     totalBookings: Number(totalBookings?.count || 0),
+    todayCapacity: Number(todayCapacityResult?.total || 0),
     todayHours: todayHours
       ? todayHours.isClosed
         ? 'Closed'

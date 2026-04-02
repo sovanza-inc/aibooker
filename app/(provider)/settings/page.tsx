@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Pencil, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Pencil, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -138,36 +139,6 @@ function parseArrayField(val: string[] | string | null | undefined): string[] {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Toast-like feedback banner                                         */
-/* ------------------------------------------------------------------ */
-
-function FeedbackBanner({
-  message,
-  type,
-}: {
-  message: string;
-  type: "success" | "error";
-}) {
-  if (!message) return null;
-  return (
-    <div
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm mb-4 ${
-        type === "success"
-          ? "bg-green-50 text-green-700 border border-green-200"
-          : "bg-red-50 text-red-700 border border-red-200"
-      }`}
-    >
-      {type === "success" ? (
-        <CheckCircle2 className="h-4 w-4" />
-      ) : (
-        <XCircle className="h-4 w-4" />
-      )}
-      {message}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /*  Badge input (for comma-separated arrays)                           */
 /* ------------------------------------------------------------------ */
 
@@ -277,10 +248,6 @@ function StandardInformationTab({
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<{
-    message: string;
-    type: "success" | "error";
-  } | null>(null);
 
   // Form state
   const [name, setName] = useState(provider.name || "");
@@ -357,7 +324,6 @@ function StandardInformationTab({
 
   const handleSave = async () => {
     setSaving(true);
-    setFeedback(null);
     try {
       const res = await fetch("/api/providers/me/settings", {
         method: "PUT",
@@ -383,14 +349,11 @@ function StandardInformationTab({
         }),
       });
       if (!res.ok) throw new Error("Failed to save");
-      setFeedback({ message: "Settings saved successfully.", type: "success" });
+      toast.success("Settings saved successfully");
       setEditing(false);
       mutate();
     } catch {
-      setFeedback({
-        message: "Failed to save settings. Please try again.",
-        type: "error",
-      });
+      toast.error("Failed to save settings");
     } finally {
       setSaving(false);
     }
@@ -399,10 +362,6 @@ function StandardInformationTab({
   return (
     <Card className="bg-white border border-gray-200 shadow-sm">
       <CardContent className="pt-6">
-        {feedback && (
-          <FeedbackBanner message={feedback.message} type={feedback.type} />
-        )}
-
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-gray-900">
             Standard information
@@ -624,10 +583,6 @@ function BusinessInformationTab({
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<{
-    message: string;
-    type: "success" | "error";
-  } | null>(null);
 
   // Form state
   const [aboutCompany, setAboutCompany] = useState(
@@ -696,7 +651,6 @@ function BusinessInformationTab({
 
   const handleSave = async () => {
     setSaving(true);
-    setFeedback(null);
     try {
       const res = await fetch("/api/providers/me/settings", {
         method: "PUT",
@@ -716,17 +670,11 @@ function BusinessInformationTab({
         }),
       });
       if (!res.ok) throw new Error("Failed to save");
-      setFeedback({
-        message: "Business information saved successfully.",
-        type: "success",
-      });
+      toast.success("Business information saved successfully");
       setEditing(false);
       mutate();
     } catch {
-      setFeedback({
-        message: "Failed to save business information. Please try again.",
-        type: "error",
-      });
+      toast.error("Failed to save business information");
     } finally {
       setSaving(false);
     }
@@ -735,10 +683,6 @@ function BusinessInformationTab({
   return (
     <Card className="bg-white border border-gray-200 shadow-sm">
       <CardContent className="pt-6">
-        {feedback && (
-          <FeedbackBanner message={feedback.message} type={feedback.type} />
-        )}
-
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-gray-900">
             Business information
@@ -910,10 +854,6 @@ function OpeningHoursTab() {
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<{
-    message: string;
-    type: "success" | "error";
-  } | null>(null);
 
   // Fetch opening hours for selected year/month
   const {
@@ -988,7 +928,6 @@ function OpeningHoursTab() {
 
   const handleSave = async () => {
     setSaving(true);
-    setFeedback(null);
     try {
       const hours = allDays.map((day) => {
         const entry = localHours.get(day.date) || {
@@ -1010,16 +949,10 @@ function OpeningHoursTab() {
         body: JSON.stringify({ hours }),
       });
       if (!res.ok) throw new Error("Failed to save");
-      setFeedback({
-        message: "Opening hours saved successfully.",
-        type: "success",
-      });
+      toast.success("Opening hours saved successfully");
       mutateHours();
     } catch {
-      setFeedback({
-        message: "Failed to save opening hours. Please try again.",
-        type: "error",
-      });
+      toast.error("Failed to save opening hours");
     } finally {
       setSaving(false);
     }
@@ -1028,9 +961,6 @@ function OpeningHoursTab() {
   return (
     <Card className="bg-white border border-gray-200 shadow-sm">
       <CardContent className="pt-6">
-        {feedback && (
-          <FeedbackBanner message={feedback.message} type={feedback.type} />
-        )}
 
         <h2 className="text-lg font-semibold text-gray-900 mb-6">
           Opening hours

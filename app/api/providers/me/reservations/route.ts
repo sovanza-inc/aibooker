@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProviderForUser, getProviderBookings, confirmBooking, cancelBooking } from '@/lib/db/provider-queries';
+import { getAuthenticatedUser } from '@/lib/auth/api-auth';
 import { z } from 'zod';
 
 const actionSchema = z.object({
@@ -9,6 +10,9 @@ const actionSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getAuthenticatedUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const provider = await getProviderForUser();
     if (!provider) {
       return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
@@ -31,6 +35,9 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const user = await getAuthenticatedUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const provider = await getProviderForUser();
     if (!provider) {
       return NextResponse.json({ error: 'Provider not found' }, { status: 404 });

@@ -35,6 +35,8 @@ export async function searchProviders(filters: {
   partySize?: number;
   query?: string;
   limit?: number;
+  latitude?: number;
+  longitude?: number;
 }) {
   const conditions = [eq(providers.status, 'active')];
 
@@ -56,7 +58,7 @@ export async function searchProviders(filters: {
     );
   }
 
-  // Free text query — search name, description, tags
+  // Free text query — search across all relevant fields
   if (filters.query) {
     const q = `%${filters.query}%`;
     conditions.push(
@@ -64,12 +66,30 @@ export async function searchProviders(filters: {
         ilike(providers.name, q),
         ilike(providers.description, q),
         sql`${providers.tags}::text ILIKE ${q}`,
-        sql`${providers.cuisineType}::text ILIKE ${q}`
+        sql`${providers.cuisineType}::text ILIKE ${q}`,
+        sql`${providers.bestFor}::text ILIKE ${q}`,
+        sql`${providers.atmosphere}::text ILIKE ${q}`,
+        ilike(providers.aboutCompany, q),
+        ilike(providers.whatIsThisBusiness, q),
+        ilike(providers.whatCanIBookHere, q),
+        ilike(providers.whenShouldRecommend, q),
+        ilike(providers.popularDishes, q),
+        ilike(providers.whatMakesUnique, q),
       )!
     );
   }
 
-  const results = await db
+  const hasGeo = filters.latitude != null && filters.longitude != null;
+
+  const distanceExpr = hasGeo
+    ? sql<number>`(6371 * acos(
+        cos(radians(${filters.latitude})) * cos(radians(${providerLocations.latitude})) *
+        cos(radians(${providerLocations.longitude}) - radians(${filters.longitude})) +
+        sin(radians(${filters.latitude})) * sin(radians(${providerLocations.latitude}))
+      ))`
+    : null;
+
+  const baseQuery = db
     .select({
       id: providers.id,
       name: providers.name,
@@ -89,11 +109,16 @@ export async function searchProviders(filters: {
       country: providerLocations.country,
       latitude: providerLocations.latitude,
       longitude: providerLocations.longitude,
+      ...(distanceExpr ? { distance: distanceExpr } : {}),
     })
     .from(providers)
     .leftJoin(providerLocations, eq(providers.id, providerLocations.providerId))
     .where(and(...conditions))
     .limit(filters.limit || 10);
+
+  const results = hasGeo && distanceExpr
+    ? await baseQuery.orderBy(asc(distanceExpr))
+    : await baseQuery;
 
   // If date/time/partySize provided, enrich with availability
   if (filters.date || filters.time || filters.partySize) {
@@ -178,9 +203,18 @@ export async function getProviderAvailability(
     .orderBy(asc(availabilitySlots.startTime))
     .limit(20);
 
+  // Deduplicate slots by bookingTypeId + startTime
+  const seen = new Set<string>();
+  const uniqueSlots = slots.filter(slot => {
+    const key = `${slot.bookingTypeId}-${slot.startTime}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
   // Check which slots are already booked/held
   const availableSlots = [];
-  for (const slot of slots) {
+  for (const slot of uniqueSlots) {
     const [existing] = await db
       .select({ count: sql<number>`count(*)` })
       .from(bookings)

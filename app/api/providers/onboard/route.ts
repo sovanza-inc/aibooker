@@ -109,7 +109,7 @@ export async function POST(request: Request) {
       streetAddress,
       city,
       postalCode,
-      country: country || 'NL',
+      country: (country || 'NL').slice(0, 10),
       latitude: latitude ?? 0,
       longitude: longitude ?? 0,
     });

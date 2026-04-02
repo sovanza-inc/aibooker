@@ -261,13 +261,24 @@ export default function OnboardingPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="country">Country</Label>
-                <Input
+                <Label htmlFor="country">Country Code</Label>
+                <select
                   id="country"
-                  placeholder="NL"
+                  className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                   value={formData.country}
                   onChange={(e) => update('country', e.target.value)}
-                />
+                >
+                  <option value="NL">NL - Netherlands</option>
+                  <option value="BE">BE - Belgium</option>
+                  <option value="DE">DE - Germany</option>
+                  <option value="FR">FR - France</option>
+                  <option value="GB">GB - United Kingdom</option>
+                  <option value="ES">ES - Spain</option>
+                  <option value="IT">IT - Italy</option>
+                  <option value="US">US - United States</option>
+                  <option value="PK">PK - Pakistan</option>
+                  <option value="AE">AE - UAE</option>
+                </select>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

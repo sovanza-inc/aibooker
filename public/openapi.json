@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://api.aibooker.com",
+      "url": "https://aibooker.jimani.ai",
       "description": "Production"
     }
   ],

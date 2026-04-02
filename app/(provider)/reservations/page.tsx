@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Download } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -90,6 +91,25 @@ function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function exportCSV(data: Reservation[]) {
+  const headers = ['Date', 'Time', 'Name', 'Email', 'Phone', 'Guests', 'Type', 'Status', 'Platform', 'Special Requests', 'Booking ID'];
+  const rows = data.map(r => [
+    r.date, r.time,
+    `${r.customerFirstName || ''} ${r.customerLastName || ''}`.trim(),
+    r.customerEmail || '', r.customerPhone || '',
+    r.partySize, r.bookingTypeName || '', r.status,
+    r.aiPlatform || '', r.specialRequests || '', r.externalBookingId || ''
+  ]);
+  const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `aibooker-reservations-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
@@ -120,7 +140,10 @@ export default function ReservationsPage() {
 
   /* ---- Confirm / Cancel action ---- */
   const handleAction = useCallback(
-    async (bookingId: number, action: "confirm" | "cancel") => {
+    async (bookingId: number, action: "confirm" | "cancel", customerName?: string) => {
+      if (action === "cancel") {
+        if (!window.confirm(`Cancel booking for ${customerName || 'this guest'}? This cannot be undone.`)) return;
+      }
       setActionLoading(bookingId);
       try {
         const res = await fetch("/api/providers/me/reservations", {
@@ -227,6 +250,20 @@ export default function ReservationsPage() {
                 </Button>
               </div>
             )}
+
+            {/* Export CSV */}
+            <div className="flex items-end sm:ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportCSV(reservations)}
+                disabled={reservations.length === 0}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Export CSV
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -329,7 +366,7 @@ export default function ReservationsPage() {
                               size="sm"
                               className="text-red-600 hover:text-red-700 hover:bg-red-50"
                               disabled={actionLoading === r.id}
-                              onClick={() => handleAction(r.id, "cancel")}
+                              onClick={() => handleAction(r.id, "cancel", `${r.customerFirstName} ${r.customerLastName}`.trim())}
                             >
                               {actionLoading === r.id ? "..." : "Cancel"}
                             </Button>

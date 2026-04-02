@@ -9,8 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { signIn as nextAuthSignIn } from 'next-auth/react';
 import { signUp } from './actions';
-import { useActionState } from 'react';
-import { ActionState } from '@/lib/auth/middleware';
 
 export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
   const searchParams = useSearchParams();
@@ -23,11 +21,8 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
   const [credentialError, setCredentialError] = useState('');
   const [credentialLoading, setCredentialLoading] = useState(false);
 
-  // For signup we still use the server action (creates user + team)
-  const [signUpState, signUpAction, signUpPending] = useActionState<ActionState, FormData>(
-    signUp,
-    { error: '' }
-  );
+  const [signUpError, setSignUpError] = useState('');
+  const [signUpLoading, setSignUpLoading] = useState(false);
 
   function handleSocialLogin(provider: string) {
     setSocialLoading(provider);
@@ -58,8 +53,43 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
     }
   }
 
-  const error = credentialError || (mode === 'signup' ? signUpState?.error : '') || '';
-  const pending = credentialLoading || signUpPending || socialLoading !== null;
+  async function handleSignUp(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSignUpError('');
+    setSignUpLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    // Call server action to create user
+    const result = await signUp({ error: '' }, formData);
+
+    if (result?.error) {
+      setSignUpError(result.error);
+      setSignUpLoading(false);
+      return;
+    }
+
+    // Auto sign-in after successful signup
+    const signInResult = await nextAuthSignIn('credentials', {
+      email,
+      password,
+      redirect: false,
+    });
+
+    setSignUpLoading(false);
+
+    if (signInResult?.error) {
+      // Signup worked but auto-signin failed — redirect to sign-in
+      router.push('/sign-in?registered=true');
+    } else {
+      router.push('/overview');
+    }
+  }
+
+  const error = credentialError || signUpError || '';
+  const pending = credentialLoading || signUpLoading || socialLoading !== null;
 
   return (
     <div className="min-h-[100dvh] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
@@ -163,7 +193,7 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
             </Button>
           </form>
         ) : (
-          <form className="space-y-6" action={signUpAction}>
+          <form className="space-y-6" onSubmit={handleSignUp}>
             <input type="hidden" name="redirect" value={redirect || ''} />
             <input type="hidden" name="priceId" value={priceId || ''} />
             <input type="hidden" name="inviteId" value={inviteId || ''} />
@@ -171,7 +201,6 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
               <Label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</Label>
               <div className="mt-1">
                 <Input id="email" name="email" type="email" autoComplete="email" required maxLength={50}
-                  defaultValue={signUpState.email}
                   className="appearance-none rounded-full relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
                   placeholder="Enter your email" />
               </div>
@@ -180,15 +209,14 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
               <Label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</Label>
               <div className="mt-1">
                 <Input id="password" name="password" type="password" autoComplete="new-password" required minLength={8} maxLength={100}
-                  defaultValue={signUpState.password}
                   className="appearance-none rounded-full relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
                   placeholder="Create a password" />
               </div>
             </div>
-            {signUpState?.error && <div className="text-red-500 text-sm">{signUpState.error}</div>}
-            <Button type="submit" disabled={signUpPending}
+            {signUpError && <div className="text-red-500 text-sm">{signUpError}</div>}
+            <Button type="submit" disabled={pending}
               className="w-full rounded-full bg-orange-600 hover:bg-orange-700 text-white">
-              {signUpPending ? <><Loader2 className="animate-spin mr-2 h-4 w-4" />Creating account...</> : 'Sign up'}
+              {signUpLoading ? <><Loader2 className="animate-spin mr-2 h-4 w-4" />Creating account...</> : 'Sign up'}
             </Button>
           </form>
         )}

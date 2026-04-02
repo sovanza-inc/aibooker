@@ -54,6 +54,12 @@ export async function POST(request: Request) {
       );
     }
 
+    // Check if user already has a provider
+    const existingByEmail = await db.select().from(providers).where(eq(providers.dashboardEmail, user.email)).limit(1);
+    if (existingByEmail.length > 0) {
+      return NextResponse.json(existingByEmail[0], { status: 200 });
+    }
+
     // Generate slug from name
     const baseSlug = name
       .toLowerCase()
@@ -109,8 +115,9 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(provider, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error during provider onboarding:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const message = error?.detail || error?.message || 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

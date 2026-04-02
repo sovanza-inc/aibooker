@@ -26,7 +26,8 @@ async function seed() {
       email: 'martijn@jimani.nl',
       name: 'Martijn van Eerden',
       passwordHash,
-      role: 'owner',
+      role: 'admin',
+      authProvider: 'credentials',
     })
     .onConflictDoNothing()
     .returning();

@@ -103,7 +103,7 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
         toast.error(msg);
       } else if (result?.ok) {
         toast.success('Signed in successfully!');
-        router.push('/overview');
+        window.location.href = '/overview';
       } else {
         setCredentialError('Sign-in failed. Please try again.');
         toast.error('Sign-in failed. Please try again.');
@@ -147,11 +147,11 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
       if (signInResult?.error) {
         toast.dismiss();
         toast.success('Account created! Please sign in.');
-        router.push('/sign-in?registered=true');
+        window.location.href = '/sign-in?registered=true';
       } else {
         toast.dismiss();
         toast.success('Welcome to AiBooker!');
-        router.push('/overview');
+        window.location.href = '/overview';
       }
     } catch (err) {
       setSignUpLoading(false);

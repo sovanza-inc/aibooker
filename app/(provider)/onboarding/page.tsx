@@ -100,7 +100,7 @@ export default function OnboardingPage() {
 
       setSuccess(true);
       setTimeout(() => {
-        router.push('/overview');
+        window.location.href = '/overview';
       }, 2000);
     } catch (err: any) {
       setError(err.message || 'Something went wrong');

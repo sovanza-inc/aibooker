@@ -1,13 +1,10 @@
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
 import Credentials from 'next-auth/providers/credentials';
-import { db } from '@/lib/db/drizzle';
-import { users, accounts as accountsTable } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
-import { compare } from 'bcryptjs';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
+  debug: process.env.NODE_ENV === 'development',
   pages: {
     signIn: '/sign-in',
   },
@@ -37,14 +34,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       try {
         if (account.type === 'oauth') {
+          // Lazy import to avoid loading DB at module init
+          const { db } = await import('@/lib/db/drizzle');
+          const { users, accounts: accountsTable } = await import('@/lib/db/schema');
+          const { eq, and } = await import('drizzle-orm');
+
           const [existingUser] = await db
             .select()
             .from(users)
-            .where(eq(users.email, user.email))
+            .where(eq(users.email, user.email!))
             .limit(1);
 
           if (existingUser) {
-            // Link account if not linked
             const [existing] = await db
               .select()
               .from(accountsTable)
@@ -80,11 +81,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             user.id = String(existingUser.id);
             (user as any).role = existingUser.role;
           } else {
-            // Create new user
             const [newUser] = await db
               .insert(users)
               .values({
-                email: user.email,
+                email: user.email!,
                 name: user.name || null,
                 image: user.image || null,
                 role: 'provider',
@@ -112,14 +112,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
         }
       } catch (error) {
-        console.error('OAuth signIn error:', error);
-        // Still allow sign-in even if DB linking fails
+        console.error('OAuth signIn DB error:', error);
       }
 
       return true;
     },
     async redirect({ url, baseUrl }) {
-      // After sign-in, always go to /overview
       if (url.startsWith(baseUrl)) return url;
       if (url.startsWith('/')) return `${baseUrl}${url}`;
       return `${baseUrl}/overview`;
@@ -139,6 +137,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        const { db } = await import('@/lib/db/drizzle');
+        const { users } = await import('@/lib/db/schema');
+        const { eq } = await import('drizzle-orm');
+        const { compare } = await import('bcryptjs');
 
         const [user] = await db
           .select()

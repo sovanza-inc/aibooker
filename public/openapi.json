@@ -1,0 +1,276 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AiBooker API",
+    "description": "AI-powered booking platform. Search restaurants, salons, and activities, check real-time availability, and make bookings.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.aibooker.com",
+      "description": "Production"
+    }
+  ],
+  "paths": {
+    "/api/v1/ai/search": {
+      "post": {
+        "operationId": "searchProviders",
+        "summary": "Search for restaurants, salons, or activities",
+        "description": "Search for bookable businesses by city, cuisine type, date, time, and party size. Returns matching providers with availability info.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string",
+                    "description": "City name (e.g., 'Amsterdam', 'London')"
+                  },
+                  "cuisine": {
+                    "type": "string",
+                    "description": "Cuisine or business type (e.g., 'italian', 'salon', 'swimming')"
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Date in YYYY-MM-DD format"
+                  },
+                  "time": {
+                    "type": "string",
+                    "description": "Preferred time in HH:MM format (e.g., '19:30')"
+                  },
+                  "party_size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50,
+                    "description": "Number of guests"
+                  },
+                  "query": {
+                    "type": "string",
+                    "description": "Free text search (e.g., 'romantic terrace dinner')"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer" },
+                          "name": { "type": "string" },
+                          "description": { "type": "string" },
+                          "cuisine_type": { "type": "array", "items": { "type": "string" } },
+                          "price_range": { "type": "integer", "description": "1-4 ($ to $$$$)" },
+                          "rating": { "type": "number" },
+                          "location": {
+                            "type": "object",
+                            "properties": {
+                              "city": { "type": "string" },
+                              "street_address": { "type": "string" }
+                            }
+                          },
+                          "has_availability": { "type": "boolean" },
+                          "available_slots": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "time": { "type": "string" },
+                                "booking_type": { "type": "string" },
+                                "remaining_capacity": { "type": "integer" }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "count": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/availability": {
+      "post": {
+        "operationId": "checkAvailability",
+        "summary": "Check real-time availability for a specific provider",
+        "description": "Check available time slots for a restaurant or business on a specific date.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["provider_id", "date"],
+                "properties": {
+                  "provider_id": { "type": "integer", "description": "Provider ID from search results" },
+                  "date": { "type": "string", "format": "date", "description": "Date in YYYY-MM-DD" },
+                  "time": { "type": "string", "description": "Preferred time in HH:MM" },
+                  "party_size": { "type": "integer", "minimum": 1, "maximum": 50 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Availability response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "available": { "type": "boolean" },
+                    "slots": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "time": { "type": "string" },
+                          "booking_type_id": { "type": "integer" },
+                          "booking_type": { "type": "string" },
+                          "remaining_capacity": { "type": "integer" }
+                        }
+                      }
+                    },
+                    "alternative_times": { "type": "array", "items": { "type": "string" } },
+                    "hold_duration_seconds": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/book": {
+      "post": {
+        "operationId": "createBooking",
+        "summary": "Create a booking with a 5-minute hold",
+        "description": "Book a slot at a restaurant or business. The slot is held for 300 seconds (5 minutes) while the booking partner processes payment and confirmation.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["provider_id", "booking_type_id", "date", "time", "party_size", "customer"],
+                "properties": {
+                  "provider_id": { "type": "integer" },
+                  "booking_type_id": { "type": "integer" },
+                  "date": { "type": "string", "format": "date" },
+                  "time": { "type": "string", "description": "HH:MM format" },
+                  "party_size": { "type": "integer", "minimum": 1, "maximum": 50 },
+                  "customer": {
+                    "type": "object",
+                    "required": ["first_name", "last_name", "email"],
+                    "properties": {
+                      "first_name": { "type": "string" },
+                      "last_name": { "type": "string" },
+                      "email": { "type": "string", "format": "email" },
+                      "phone": { "type": "string" }
+                    }
+                  },
+                  "special_requests": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Booking created with hold",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "booking_id": { "type": "integer" },
+                    "status": { "type": "string", "enum": ["held"] },
+                    "hold_expires_at": { "type": "string", "format": "date-time" },
+                    "hold_duration_seconds": { "type": "integer" },
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No availability — includes alternative times"
+          }
+        }
+      }
+    },
+    "/api/v1/ai/booking-status": {
+      "post": {
+        "operationId": "getBookingStatus",
+        "summary": "Check the status of a booking",
+        "description": "Get the current status of a booking by its ID.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["booking_id"],
+                "properties": {
+                  "booking_id": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Booking status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "booking_id": { "type": "integer" },
+                    "status": { "type": "string", "enum": ["pending", "held", "confirmed", "cancelled", "completed", "no_show"] },
+                    "provider": { "type": "string" },
+                    "booking_type": { "type": "string" },
+                    "date": { "type": "string" },
+                    "time": { "type": "string" },
+                    "party_size": { "type": "integer" },
+                    "hold_expires_at": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "API key provided by AiBooker"
+      }
+    }
+  },
+  "security": [
+    { "bearerAuth": [] }
+  ]
+}

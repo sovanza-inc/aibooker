@@ -169,13 +169,15 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   const hasProvider = provider && provider.id;
 
   useEffect(() => {
+    console.log('[Layout] isLoading:', isLoading, 'hasProvider:', hasProvider, 'isOnboarding:', isOnboarding, 'provider:', provider);
     if (isLoading) return;
     if (!hasProvider && !isOnboarding) {
+      console.log('[Layout] No provider, redirecting to /onboarding');
       window.location.href = '/onboarding';
       return;
     }
     setChecked(true);
-  }, [isLoading, hasProvider, isOnboarding]);
+  }, [isLoading, hasProvider, isOnboarding, provider]);
 
   // While loading or redirecting, show spinner
   if (!checked && !isOnboarding) {

@@ -141,9 +141,9 @@ export default function LandingPage() {
               <a href="#pricing" className="hover:text-gray-900">Pricing</a>
               <a href="#faq" className="hover:text-gray-900">FAQ</a>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <Link href="/sign-in">
-                <Button variant="ghost" size="sm" className="text-sm">Sign In</Button>
+                <Button variant="ghost" size="sm" className="text-sm hidden sm:inline-flex">Sign In</Button>
               </Link>
               <Link href="/sign-up">
                 <Button size="sm" className="rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm">
@@ -448,7 +448,7 @@ export default function LandingPage() {
                   </div>
                   <div className="bg-white rounded-lg p-3 border border-gray-100">
                     <p className="text-xs font-medium text-orange-600 mb-1">Available tonight</p>
-                    <div className="flex gap-2 mt-1">
+                    <div className="flex flex-wrap gap-2 mt-1">
                       {['18:00', '18:30', '19:00', '19:30', '20:00', '20:30'].map((t) => (
                         <span key={t} className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200">{t}</span>
                       ))}
@@ -474,9 +474,9 @@ export default function LandingPage() {
           {/* Two-column: left = chart + platforms, right = bookings table */}
           <FadeIn>
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="grid md:grid-cols-2">
+              <div className="grid grid-cols-1 md:grid-cols-2">
                 {/* Left column */}
-                <div className="p-6 md:border-r border-gray-200">
+                <div className="p-6 md:border-r border-b md:border-b-0 border-gray-200">
                   {/* Weekly chart */}
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">

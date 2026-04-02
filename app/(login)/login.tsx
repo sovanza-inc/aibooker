@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { signIn as nextAuthSignIn } from 'next-auth/react';
 import { signUp } from './actions';
+import { toast } from 'sonner';
 
 export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
   const searchParams = useSearchParams();
@@ -17,15 +18,36 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
   const priceId = searchParams.get('priceId');
   const inviteId = searchParams.get('inviteId');
   const urlError = searchParams.get('error');
+  const registered = searchParams.get('registered');
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
   const [credentialError, setCredentialError] = useState('');
   const [credentialLoading, setCredentialLoading] = useState(false);
-
   const [signUpError, setSignUpError] = useState('');
   const [signUpLoading, setSignUpLoading] = useState(false);
 
+  // Show toast for URL-based errors/messages
+  useEffect(() => {
+    if (urlError) {
+      const messages: Record<string, string> = {
+        OAuthAccountNotLinked: 'This email is already registered with a different sign-in method.',
+        OAuthCallbackError: 'Google sign-in failed. Please try again.',
+        OAuthSignin: 'Could not start Google sign-in. Please try again.',
+        Callback: 'Authentication error. Please try again.',
+        CredentialsSignin: 'Invalid email or password.',
+        Configuration: 'Server configuration error. Please contact support.',
+        AccessDenied: 'Access denied. You may not have permission.',
+        default: 'Something went wrong. Please try again.',
+      };
+      toast.error(messages[urlError] || messages.default);
+    }
+    if (registered) {
+      toast.success('Account created! Please sign in.');
+    }
+  }, [urlError, registered]);
+
   function handleSocialLogin(provider: string) {
     setSocialLoading(provider);
+    toast.loading('Connecting to Google...');
     nextAuthSignIn(provider, { callbackUrl: '/overview' });
   }
 
@@ -38,18 +60,30 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
 
-    const result = await nextAuthSignIn('credentials', {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await nextAuthSignIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
 
-    setCredentialLoading(false);
+      setCredentialLoading(false);
 
-    if (result?.error) {
-      setCredentialError('Invalid email or password. Please try again.');
-    } else {
-      router.push('/overview');
+      if (result?.error) {
+        const msg = 'Invalid email or password. Please try again.';
+        setCredentialError(msg);
+        toast.error(msg);
+      } else if (result?.ok) {
+        toast.success('Signed in successfully!');
+        router.push('/overview');
+      } else {
+        setCredentialError('Sign-in failed. Please try again.');
+        toast.error('Sign-in failed. Please try again.');
+      }
+    } catch (err) {
+      setCredentialLoading(false);
+      setCredentialError('Network error. Please check your connection.');
+      toast.error('Network error. Please check your connection.');
     }
   }
 
@@ -62,29 +96,38 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
 
-    // Call server action to create user
-    const result = await signUp({ error: '' }, formData);
+    try {
+      const result = await signUp({ error: '' }, formData);
 
-    if (result?.error) {
-      setSignUpError(result.error);
+      if (result?.error) {
+        setSignUpError(result.error);
+        setSignUpLoading(false);
+        toast.error(result.error);
+        return;
+      }
+
+      toast.loading('Account created! Signing you in...');
+
+      const signInResult = await nextAuthSignIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
       setSignUpLoading(false);
-      return;
-    }
 
-    // Auto sign-in after successful signup
-    const signInResult = await nextAuthSignIn('credentials', {
-      email,
-      password,
-      redirect: false,
-    });
-
-    setSignUpLoading(false);
-
-    if (signInResult?.error) {
-      // Signup worked but auto-signin failed — redirect to sign-in
-      router.push('/sign-in?registered=true');
-    } else {
-      router.push('/overview');
+      if (signInResult?.error) {
+        toast.dismiss();
+        toast.success('Account created! Please sign in.');
+        router.push('/sign-in?registered=true');
+      } else {
+        toast.dismiss();
+        toast.success('Welcome to AiBooker!');
+        router.push('/overview');
+      }
+    } catch (err) {
+      setSignUpLoading(false);
+      toast.error('Something went wrong. Please try again.');
     }
   }
 
@@ -101,15 +144,13 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
           <span className="text-2xl font-bold text-gray-900">AiBooker</span>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          {mode === 'signin'
-            ? 'Sign in to your account'
-            : 'Create your account'}
+          {mode === 'signin' ? 'Sign in to your account' : 'Create your account'}
         </h2>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        {/* Social Login Buttons */}
-        <div className="space-y-3 mb-6">
+        {/* Google Login */}
+        <div className="mb-6">
           <Button
             type="button"
             variant="outline"
@@ -129,7 +170,6 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
             )}
             Continue with Google
           </Button>
-
         </div>
 
         {/* Divider */}
@@ -141,15 +181,6 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
             <span className="px-2 bg-gray-50 text-gray-500">Or continue with email</span>
           </div>
         </div>
-
-        {/* OAuth error */}
-        {urlError && (
-          <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">
-            {urlError === 'OAuthAccountNotLinked'
-              ? 'This email is already registered with a different sign-in method.'
-              : 'Something went wrong. Please try again.'}
-          </div>
-        )}
 
         {/* Email/Password Form */}
         {mode === 'signin' ? (

@@ -136,7 +136,7 @@ export default function OnboardingPage() {
             <div key={step.number} className="flex items-center flex-1">
               <div className="flex flex-col items-center flex-1">
                 <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${
+                  className={`flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full text-xs sm:text-sm font-bold ${
                     currentStep >= step.number
                       ? 'bg-orange-500 text-white'
                       : 'bg-gray-200 text-gray-500'
@@ -145,7 +145,7 @@ export default function OnboardingPage() {
                   {step.number}
                 </div>
                 <span
-                  className={`mt-2 text-xs font-medium ${
+                  className={`mt-1 sm:mt-2 text-[10px] sm:text-xs font-medium ${
                     currentStep >= step.number ? 'text-orange-600' : 'text-gray-400'
                   }`}
                 >
@@ -313,26 +313,26 @@ export default function OnboardingPage() {
               <div className="p-4">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Business Info</h3>
                 <dl className="space-y-2 text-sm">
-                  <div className="flex justify-between">
+                  <div className="flex flex-col sm:flex-row sm:justify-between">
                     <dt className="text-gray-500">Name</dt>
                     <dd className="font-medium text-gray-900">{formData.name}</dd>
                   </div>
                   {formData.email && (
-                    <div className="flex justify-between">
+                    <div className="flex flex-col sm:flex-row sm:justify-between">
                       <dt className="text-gray-500">Email</dt>
-                      <dd className="font-medium text-gray-900">{formData.email}</dd>
+                      <dd className="font-medium text-gray-900 break-all">{formData.email}</dd>
                     </div>
                   )}
                   {formData.phone && (
-                    <div className="flex justify-between">
+                    <div className="flex flex-col sm:flex-row sm:justify-between">
                       <dt className="text-gray-500">Phone</dt>
                       <dd className="font-medium text-gray-900">{formData.phone}</dd>
                     </div>
                   )}
                   {formData.website && (
-                    <div className="flex justify-between">
+                    <div className="flex flex-col sm:flex-row sm:justify-between">
                       <dt className="text-gray-500">Website</dt>
-                      <dd className="font-medium text-gray-900">{formData.website}</dd>
+                      <dd className="font-medium text-gray-900 break-all">{formData.website}</dd>
                     </div>
                   )}
                   {formData.description && (
@@ -347,24 +347,24 @@ export default function OnboardingPage() {
               <div className="p-4">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Location</h3>
                 <dl className="space-y-2 text-sm">
-                  <div className="flex justify-between">
+                  <div className="flex flex-col sm:flex-row sm:justify-between">
                     <dt className="text-gray-500">Address</dt>
                     <dd className="font-medium text-gray-900">{formData.streetAddress}</dd>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex flex-col sm:flex-row sm:justify-between">
                     <dt className="text-gray-500">City</dt>
                     <dd className="font-medium text-gray-900">{formData.city}</dd>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex flex-col sm:flex-row sm:justify-between">
                     <dt className="text-gray-500">Postal code</dt>
                     <dd className="font-medium text-gray-900">{formData.postalCode}</dd>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex flex-col sm:flex-row sm:justify-between">
                     <dt className="text-gray-500">Country</dt>
                     <dd className="font-medium text-gray-900">{formData.country}</dd>
                   </div>
                   {(formData.latitude || formData.longitude) && (
-                    <div className="flex justify-between">
+                    <div className="flex flex-col sm:flex-row sm:justify-between">
                       <dt className="text-gray-500">Coordinates</dt>
                       <dd className="font-medium text-gray-900">
                         {formData.latitude}, {formData.longitude}

@@ -87,14 +87,15 @@ export default function AdminApiKeysPage() {
 
       <Card>
         <CardContent className="p-0">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Provider</TableHead>
-                <TableHead>Source</TableHead>
+                <TableHead className="hidden sm:table-cell">Source</TableHead>
                 <TableHead>API Key</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead className="hidden sm:table-cell">Created</TableHead>
                 <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
@@ -109,18 +110,18 @@ export default function AdminApiKeysPage() {
                 keys.map((k) => (
                   <TableRow key={k.id}>
                     <TableCell className="font-medium">{k.providerName}</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-700">
                         {k.source}
                       </span>
                     </TableCell>
-                    <TableCell className="font-mono text-sm text-gray-500">
+                    <TableCell className="font-mono text-sm text-gray-500 max-w-[120px] truncate">
                       {maskKey(k.apiKey)}
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={k.status} />
                     </TableCell>
-                    <TableCell className="text-gray-500 text-sm">
+                    <TableCell className="text-gray-500 text-sm hidden sm:table-cell">
                       {new Date(k.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
@@ -131,6 +132,7 @@ export default function AdminApiKeysPage() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

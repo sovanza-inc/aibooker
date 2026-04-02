@@ -60,16 +60,17 @@ export default function AdminProvidersPage() {
 
       <Card>
         <CardContent className="p-0">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>City</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Partner</TableHead>
-                <TableHead className="text-right">Rating</TableHead>
+                <TableHead className="hidden sm:table-cell">Partner</TableHead>
+                <TableHead className="text-right hidden sm:table-cell">Rating</TableHead>
                 <TableHead className="text-right">Bookings</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead className="hidden sm:table-cell">Created</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -87,12 +88,12 @@ export default function AdminProvidersPage() {
                     <TableCell>
                       <StatusBadge status={p.status} />
                     </TableCell>
-                    <TableCell>{p.partner}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="hidden sm:table-cell">{p.partner}</TableCell>
+                    <TableCell className="text-right hidden sm:table-cell">
                       {p.rating != null ? p.rating.toFixed(1) : '-'}
                     </TableCell>
                     <TableCell className="text-right">{p.bookingsCount}</TableCell>
-                    <TableCell className="text-gray-500 text-sm">
+                    <TableCell className="text-gray-500 text-sm hidden sm:table-cell">
                       {new Date(p.createdAt).toLocaleDateString()}
                     </TableCell>
                   </TableRow>
@@ -100,6 +101,7 @@ export default function AdminProvidersPage() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

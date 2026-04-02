@@ -262,9 +262,9 @@ export default function ReservationsPage() {
                   <TableHead>Time</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Guests</TableHead>
-                  <TableHead>Type</TableHead>
+                  <TableHead className="hidden sm:table-cell">Type</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Platform</TableHead>
+                  <TableHead className="hidden sm:table-cell">Platform</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -289,7 +289,7 @@ export default function ReservationsPage() {
                         {r.customerFirstName} {r.customerLastName}
                       </TableCell>
                       <TableCell>{r.partySize}</TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <span className="text-sm text-gray-700">
                           {r.bookingTypeName ?? "-"}
                         </span>
@@ -299,7 +299,7 @@ export default function ReservationsPage() {
                           {capitalize(r.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <span className="text-sm text-gray-700">
                           {platformLabel[r.aiPlatform] ?? r.aiPlatform}
                         </span>

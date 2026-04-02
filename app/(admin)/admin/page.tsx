@@ -85,8 +85,8 @@ export default function AdminOverviewPage() {
           {stats.platformStats.length === 0 ? (
             <p className="text-sm text-gray-500">No booking data yet.</p>
           ) : (
-            <div className="flex items-center gap-8">
-              <div className="w-64 h-64">
+            <div className="flex flex-col sm:flex-row items-center gap-8">
+              <div className="w-48 h-48 sm:w-64 sm:h-64 flex-shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie

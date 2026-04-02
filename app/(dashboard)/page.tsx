@@ -121,39 +121,78 @@ function FAQSection() {
   );
 }
 
+function LandingNav() {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  return (
+    <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-gray-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-orange-500 text-white font-bold text-sm">
+              ai
+            </div>
+            <span className="text-xl font-bold text-gray-900">AiBooker</span>
+          </Link>
+          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
+            <a href="#how-it-works" className="hover:text-gray-900">How it works</a>
+            <a href="#features" className="hover:text-gray-900">Features</a>
+            <a href="#industries" className="hover:text-gray-900">Industries</a>
+            <a href="#pricing" className="hover:text-gray-900">Pricing</a>
+            <a href="#faq" className="hover:text-gray-900">FAQ</a>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link href="/sign-in">
+              <Button variant="ghost" size="sm" className="text-sm hidden sm:inline-flex">Sign In</Button>
+            </Link>
+            <Link href="/sign-up">
+              <Button size="sm" className="rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm">
+                Get Started
+              </Button>
+            </Link>
+            <button
+              className="md:hidden p-1.5 rounded-md text-gray-600 hover:bg-gray-100"
+              onClick={() => setMobileNavOpen(!mobileNavOpen)}
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {mobileNavOpen
+                  ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                }
+              </svg>
+            </button>
+          </div>
+        </div>
+        {mobileNavOpen && (
+          <div className="md:hidden pb-4 space-y-1">
+            {['how-it-works', 'features', 'industries', 'pricing', 'faq'].map((id) => (
+              <a
+                key={id}
+                href={`#${id}`}
+                onClick={() => setMobileNavOpen(false)}
+                className="block px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 capitalize"
+              >
+                {id.replace(/-/g, ' ')}
+              </a>
+            ))}
+            <Link
+              href="/sign-in"
+              onClick={() => setMobileNavOpen(false)}
+              className="block px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 sm:hidden"
+            >
+              Sign In
+            </Link>
+          </div>
+        )}
+      </div>
+    </nav>
+  );
+}
+
 export default function LandingPage() {
   return (
     <main>
       {/* Navbar */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-orange-500 text-white font-bold text-sm">
-                ai
-              </div>
-              <span className="text-xl font-bold text-gray-900">AiBooker</span>
-            </Link>
-            <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
-              <a href="#how-it-works" className="hover:text-gray-900">How it works</a>
-              <a href="#features" className="hover:text-gray-900">Features</a>
-              <a href="#industries" className="hover:text-gray-900">Industries</a>
-              <a href="#pricing" className="hover:text-gray-900">Pricing</a>
-              <a href="#faq" className="hover:text-gray-900">FAQ</a>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Link href="/sign-in">
-                <Button variant="ghost" size="sm" className="text-sm hidden sm:inline-flex">Sign In</Button>
-              </Link>
-              <Link href="/sign-up">
-                <Button size="sm" className="rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm">
-                  Get Started
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <LandingNav />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden py-20 sm:py-28">
@@ -207,8 +246,8 @@ export default function LandingPage() {
                 </p>
               </FadeIn>
             </div>
-            <ScaleIn delay={0.4} className="mt-12 lg:mt-0 lg:col-span-5">
-              <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 space-y-4">
+            <ScaleIn delay={0.4} className="mt-12 lg:mt-0 lg:col-span-5 min-w-0">
+              <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 sm:p-6 space-y-3 sm:space-y-4">
                 <div className="flex items-center gap-3 text-sm text-gray-500">
                   <Bot className="h-5 w-5 text-orange-500" />
                   <span>ChatGPT</span>

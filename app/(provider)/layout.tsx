@@ -84,7 +84,7 @@ function ProviderNav() {
                       {providerName.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="font-medium">{providerName}</span>
+                  <span className="font-medium max-w-[150px] truncate">{providerName}</span>
                   <ChevronDown className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
@@ -133,6 +133,21 @@ function ProviderNav() {
                 </Link>
               );
             })}
+            <div className="border-t border-gray-200 mt-2 pt-2">
+              <Link
+                href="/pricing"
+                onClick={() => setMobileOpen(false)}
+                className="block px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50"
+              >
+                Billing
+              </Link>
+              <button
+                onClick={() => { setMobileOpen(false); handleSignOut(); }}
+                className="block w-full text-left px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50"
+              >
+                Sign out
+              </button>
+            </div>
           </nav>
         )}
       </div>

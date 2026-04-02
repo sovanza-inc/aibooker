@@ -45,10 +45,38 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
     }
   }, [urlError, registered]);
 
-  function handleSocialLogin(provider: string) {
+  async function handleSocialLogin(provider: string) {
     setSocialLoading(provider);
     toast.loading('Connecting to Google...');
-    nextAuthSignIn(provider, { callbackUrl: '/overview' });
+    // Fetch CSRF token first, then POST to signin
+    try {
+      const csrfRes = await fetch('/api/auth/csrf');
+      const { csrfToken } = await csrfRes.json();
+
+      // Create and submit a form (same as next-auth does internally)
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `/api/auth/signin/${provider}`;
+
+      const csrfInput = document.createElement('input');
+      csrfInput.type = 'hidden';
+      csrfInput.name = 'csrfToken';
+      csrfInput.value = csrfToken;
+      form.appendChild(csrfInput);
+
+      const callbackInput = document.createElement('input');
+      callbackInput.type = 'hidden';
+      callbackInput.name = 'callbackUrl';
+      callbackInput.value = '/overview';
+      form.appendChild(callbackInput);
+
+      document.body.appendChild(form);
+      form.submit();
+    } catch (err) {
+      setSocialLoading(null);
+      toast.dismiss();
+      toast.error('Failed to connect to Google. Please try again.');
+    }
   }
 
   async function handleCredentialSignIn(e: React.FormEvent<HTMLFormElement>) {

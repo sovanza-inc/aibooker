@@ -17,8 +17,12 @@ export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 100 }),
   email: varchar('email', { length: 255 }).notNull().unique(),
-  passwordHash: text('password_hash').notNull(),
-  role: varchar('role', { length: 20 }).notNull().default('member'),
+  passwordHash: text('password_hash'), // nullable for social login
+  role: varchar('role', { length: 20 }).notNull().default('provider'), // admin | partner | provider
+  image: text('image'), // avatar from social provider
+  emailVerified: timestamp('email_verified'),
+  authProvider: varchar('auth_provider', { length: 20 }), // google | github | credentials
+  authProviderId: varchar('auth_provider_id', { length: 255 }), // external ID from OAuth
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   deletedAt: timestamp('deleted_at'),
@@ -113,6 +117,32 @@ export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
   }),
   user: one(users, {
     fields: [activityLogs.userId],
+    references: [users.id],
+  }),
+}));
+
+// OAuth Accounts — for social login linking
+export const accounts = pgTable('accounts', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  type: varchar('type', { length: 50 }).notNull(), // oauth | credentials
+  provider: varchar('provider', { length: 50 }).notNull(), // google | github
+  providerAccountId: varchar('provider_account_id', { length: 255 }).notNull(),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  expiresAt: integer('expires_at'),
+  tokenType: varchar('token_type', { length: 50 }),
+  scope: text('scope'),
+  idToken: text('id_token'),
+}, (table) => [
+  uniqueIndex('accounts_provider_account_idx').on(table.provider, table.providerAccountId),
+]);
+
+export const accountsRelations = relations(accounts, ({ one }) => ({
+  user: one(users, {
+    fields: [accounts.userId],
     references: [users.id],
   }),
 }));
@@ -441,6 +471,8 @@ export type WebhookLog = typeof webhookLogs.$inferSelect;
 export type NewWebhookLog = typeof webhookLogs.$inferInsert;
 export type OpeningHour = typeof openingHours.$inferSelect;
 export type NewOpeningHour = typeof openingHours.$inferInsert;
+export type Account = typeof accounts.$inferSelect;
+export type NewAccount = typeof accounts.$inferInsert;
 
 export enum ActivityType {
   SIGN_UP = 'SIGN_UP',

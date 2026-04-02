@@ -1,49 +1,39 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { signToken, verifyToken } from '@/lib/auth/session';
+import { auth } from '@/lib/auth/auth-config';
 
 const protectedPrefixes = ['/dashboard', '/overview', '/reservations', '/booking-types', '/settings', '/pricing', '/onboarding', '/admin'];
+const publicPaths = ['/', '/sign-in', '/sign-up', '/api/auth', '/api/v1/ai', '/api/health', '/openapi.json'];
 
-export async function middleware(request: NextRequest) {
+export default auth((request) => {
   const { pathname } = request.nextUrl;
-  const sessionCookie = request.cookies.get('session');
+  const session = request.auth;
+
+  // Allow public paths
+  if (publicPaths.some(p => pathname.startsWith(p)) || pathname.startsWith('/_next') || pathname === '/favicon.ico') {
+    return NextResponse.next();
+  }
+
+  // Check if route is protected
   const isProtectedRoute = protectedPrefixes.some(p => pathname.startsWith(p));
 
-  if (isProtectedRoute && !sessionCookie) {
+  if (isProtectedRoute && !session) {
     return NextResponse.redirect(new URL('/sign-in', request.url));
   }
 
-  let res = NextResponse.next();
+  // Role-based access control
+  if (session) {
+    const role = (session.user as any)?.role || 'provider';
 
-  if (sessionCookie && request.method === 'GET') {
-    try {
-      const parsed = await verifyToken(sessionCookie.value);
-      const expiresInOneDay = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      res.cookies.set({
-        name: 'session',
-        value: await signToken({
-          ...parsed,
-          expires: expiresInOneDay.toISOString()
-        }),
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        expires: expiresInOneDay
-      });
-    } catch (error) {
-      console.error('Error updating session:', error);
-      res.cookies.delete('session');
-      if (isProtectedRoute) {
-        return NextResponse.redirect(new URL('/sign-in', request.url));
-      }
+    // Admin routes — only admin role
+    if (pathname.startsWith('/admin') && role !== 'admin') {
+      return NextResponse.redirect(new URL('/overview', request.url));
     }
   }
 
-  return res;
-}
+  return NextResponse.next();
+});
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
-  runtime: 'nodejs'
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

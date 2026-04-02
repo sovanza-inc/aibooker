@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import useSWR from 'swr';
+import { useSession, signOut as nextAuthSignOut } from 'next-auth/react';
 
 const fetcher = async (url: string) => {
   const r = await fetch(url);
@@ -30,15 +31,14 @@ const navItems = [
 function ProviderNav() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { data: user } = useSWR('/api/user', fetcher);
+  const { data: session } = useSession();
   const { data: provider } = useSWR('/api/providers/me', fetcher);
 
-  const providerName = provider?.name || user?.name || 'My Restaurant';
+  const providerName = provider?.name || session?.user?.name || 'My Restaurant';
+  const userImage = session?.user?.image;
 
   async function handleSignOut() {
-    await fetch('/api/user', { method: 'DELETE' }).catch(() => {});
-    document.cookie = 'session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    window.location.href = '/sign-in';
+    await nextAuthSignOut({ callbackUrl: '/sign-in' });
   }
 
   return (
@@ -79,7 +79,7 @@ function ProviderNav() {
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage alt={providerName} />
+                    <AvatarImage src={userImage || undefined} alt={providerName} />
                     <AvatarFallback className="text-xs bg-orange-100 text-orange-700">
                       {providerName.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                     </AvatarFallback>

@@ -1,26 +1,33 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { db } from '@/lib/db/drizzle';
-import { integrations, providers, providerLocations, teamMembers } from '@/lib/db/schema';
-import { getUser } from '@/lib/db/queries';
+import { integrations, providers, providerLocations, teamMembers, users, teams } from '@/lib/db/schema';
+import { getAuthenticatedUser } from '@/lib/auth/api-auth';
 import { eq } from 'drizzle-orm';
 
 export async function POST(request: Request) {
   try {
-    const user = await getUser();
-    if (!user) {
+    const authUser = await getAuthenticatedUser();
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Find the user's team
-    const teamResult = await db
+    // Get full user from DB
+    const [user] = await db.select().from(users).where(eq(users.id, authUser.id)).limit(1);
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    // Find the user's team, create one if they don't have one (social login users)
+    let teamResult = await db
       .select({ teamId: teamMembers.teamId })
       .from(teamMembers)
       .where(eq(teamMembers.userId, user.id))
       .limit(1);
 
     if (teamResult.length === 0) {
-      return NextResponse.json({ error: 'No team found for user' }, { status: 400 });
+      // Create a team for social login users who don't have one
+      const [newTeam] = await db.insert(teams).values({ name: `${user.email}'s Team` }).returning();
+      await db.insert(teamMembers).values({ teamId: newTeam.id, userId: user.id, role: 'owner' });
+      teamResult = [{ teamId: newTeam.id }];
     }
 
     const teamId = teamResult[0].teamId;

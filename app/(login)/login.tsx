@@ -96,6 +96,7 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
       });
 
       setCredentialLoading(false);
+      console.log('SignIn result:', JSON.stringify(result));
 
       if (result?.error) {
         const msg = 'Invalid email or password. Please try again.';

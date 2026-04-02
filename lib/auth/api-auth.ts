@@ -1,14 +1,29 @@
-import { cookies } from 'next/headers';
-import { verifyToken } from './session';
+import { auth } from './auth-config';
+import { db } from '@/lib/db/drizzle';
+import { users } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 export async function getAuthenticatedUser() {
-  const session = (await cookies()).get('session')?.value;
-  if (!session) return null;
   try {
-    const data = await verifyToken(session);
-    if (new Date(data.expires) < new Date()) return null;
-    return data.user;
-  } catch {
+    const session = await auth();
+    if (!session?.user?.email) return null;
+
+    // Always look up by email — most reliable
+    const [user] = await db
+      .select({ id: users.id, email: users.email, role: users.role })
+      .from(users)
+      .where(eq(users.email, session.user.email))
+      .limit(1);
+
+    if (!user) return null;
+
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+  } catch (e) {
+    console.error('getAuthenticatedUser error:', e);
     return null;
   }
 }

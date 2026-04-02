@@ -12,11 +12,11 @@ import {
   teamMembers,
 } from './schema';
 import { eq, and, desc, gte, lte, sql, count, asc } from 'drizzle-orm';
-import { getUser } from './queries';
+import { getAuthenticatedUser } from '@/lib/auth/api-auth';
 
 /** Get the provider linked to the currently authenticated user */
 export async function getProviderForUser() {
-  const user = await getUser();
+  const user = await getAuthenticatedUser();
   if (!user) return null;
 
   // Find provider where dashboardEmail matches user email

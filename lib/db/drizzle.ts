@@ -1,9 +1,15 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema';
-import dotenv from 'dotenv';
 
-dotenv.config();
+// dotenv only needed for local dev scripts (seed, migrations)
+// On Vercel, env vars are already in process.env
+if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
+  try {
+    const dotenv = require('dotenv');
+    dotenv.config();
+  } catch {}
+}
 
 let client: ReturnType<typeof postgres> | null = null;
 let database: ReturnType<typeof drizzle<typeof schema>> | null = null;

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "aibooker": {
+      "type": "http",
+      "url": "http://172.16.26.178:3001/mcp"
+    }
+  }
+}

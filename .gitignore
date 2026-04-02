@@ -41,3 +41,4 @@ postgres_data/
 .env*.local
 
 .vercel
+client_secret_*.json

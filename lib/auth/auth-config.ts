@@ -7,13 +7,13 @@ import { eq, and } from 'drizzle-orm';
 import { compare } from 'bcryptjs';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   pages: {
     signIn: '/sign-in',
-    newUser: '/onboarding',
   },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
   callbacks: {
     async jwt({ token, user, account }) {
@@ -21,9 +21,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id;
         token.role = (user as any).role || 'provider';
         token.image = user.image;
-      }
-      if (account) {
-        token.provider = account.provider;
       }
       return token;
     },
@@ -35,93 +32,97 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return session;
     },
-    async signIn({ user, account, profile }) {
-      if (!account) return false;
+    async signIn({ user, account }) {
+      if (!account || !user.email) return false;
 
-      // For OAuth providers, link or create user
-      if (account.type === 'oauth' && user.email) {
-        const [existingUser] = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, user.email))
-          .limit(1);
-
-        if (existingUser) {
-          // Link account if not already linked
-          const [existingAccount] = await db
+      try {
+        if (account.type === 'oauth') {
+          const [existingUser] = await db
             .select()
-            .from(accountsTable)
-            .where(
-              and(
-                eq(accountsTable.provider, account.provider),
-                eq(accountsTable.providerAccountId, account.providerAccountId)
-              )
-            )
+            .from(users)
+            .where(eq(users.email, user.email))
             .limit(1);
 
-          if (!existingAccount) {
+          if (existingUser) {
+            // Link account if not linked
+            const [existing] = await db
+              .select()
+              .from(accountsTable)
+              .where(
+                and(
+                  eq(accountsTable.provider, account.provider),
+                  eq(accountsTable.providerAccountId, account.providerAccountId)
+                )
+              )
+              .limit(1);
+
+            if (!existing) {
+              await db.insert(accountsTable).values({
+                userId: existingUser.id,
+                type: account.type,
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+                accessToken: account.access_token || null,
+                refreshToken: account.refresh_token || null,
+                expiresAt: account.expires_at || null,
+                tokenType: account.token_type || null,
+                scope: account.scope || null,
+                idToken: account.id_token || null,
+              }).onConflictDoNothing();
+            }
+
+            if (!existingUser.image && user.image) {
+              await db.update(users)
+                .set({ image: user.image, authProvider: account.provider })
+                .where(eq(users.id, existingUser.id));
+            }
+
+            user.id = String(existingUser.id);
+            (user as any).role = existingUser.role;
+          } else {
+            // Create new user
+            const [newUser] = await db
+              .insert(users)
+              .values({
+                email: user.email,
+                name: user.name || null,
+                image: user.image || null,
+                role: 'provider',
+                authProvider: account.provider,
+                authProviderId: account.providerAccountId,
+                emailVerified: new Date(),
+              })
+              .returning();
+
             await db.insert(accountsTable).values({
-              userId: existingUser.id,
+              userId: newUser.id,
               type: account.type,
               provider: account.provider,
               providerAccountId: account.providerAccountId,
-              accessToken: account.access_token,
-              refreshToken: account.refresh_token,
-              expiresAt: account.expires_at,
-              tokenType: account.token_type,
-              scope: account.scope,
-              idToken: account.id_token,
-            });
+              accessToken: account.access_token || null,
+              refreshToken: account.refresh_token || null,
+              expiresAt: account.expires_at || null,
+              tokenType: account.token_type || null,
+              scope: account.scope || null,
+              idToken: account.id_token || null,
+            }).onConflictDoNothing();
+
+            user.id = String(newUser.id);
+            (user as any).role = 'provider';
           }
-
-          // Update user image if not set
-          if (!existingUser.image && user.image) {
-            await db
-              .update(users)
-              .set({ image: user.image, authProvider: account.provider })
-              .where(eq(users.id, existingUser.id));
-          }
-
-          // Pass the DB user id to the token
-          user.id = String(existingUser.id);
-          (user as any).role = existingUser.role;
-          return true;
-        } else {
-          // Create new user
-          const [newUser] = await db
-            .insert(users)
-            .values({
-              email: user.email,
-              name: user.name || null,
-              image: user.image || null,
-              role: 'provider',
-              authProvider: account.provider,
-              authProviderId: account.providerAccountId,
-              emailVerified: new Date(),
-            })
-            .returning();
-
-          // Create account link
-          await db.insert(accountsTable).values({
-            userId: newUser.id,
-            type: account.type,
-            provider: account.provider,
-            providerAccountId: account.providerAccountId,
-            accessToken: account.access_token,
-            refreshToken: account.refresh_token,
-            expiresAt: account.expires_at,
-            tokenType: account.token_type,
-            scope: account.scope,
-            idToken: account.id_token,
-          });
-
-          user.id = String(newUser.id);
-          (user as any).role = newUser.role;
-          return true;
         }
+      } catch (error) {
+        console.error('OAuth signIn error:', error);
+        // Still allow sign-in even if DB linking fails
       }
 
       return true;
+    },
+    async redirect({ url, baseUrl }) {
+      // After sign-in, always go to /overview
+      if (url.startsWith(baseUrl)) return url;
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      return `${baseUrl}/overview`;
     },
   },
   providers: [

@@ -355,7 +355,7 @@ async function seedDemo() {
     });
 
     // Create booking types
-    const createdTypes: { id: number; externalId: string; name: string }[] = [];
+    const createdTypes: { id: string; externalId: string; name: string }[] = [];
     for (const bt of data.bookingTypes) {
       const [created] = await db.insert(bookingTypes).values({
         providerId: provider.id,

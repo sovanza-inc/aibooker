@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -21,7 +22,11 @@ import {
   PieChart,
   Pie,
   Cell,
+  Label,
 } from "recharts";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+
+const DASHBOARD_PAGE_SIZE = 15;
 
 const fetcher = async (url: string) => {
   const r = await fetch(url);
@@ -29,13 +34,14 @@ const fetcher = async (url: string) => {
   return r.json();
 };
 
-const PLATFORM_COLORS = ["#f97316", "#7c3aed", "#10b981", "#3b82f6", "#ef4444"];
+const PLATFORM_COLORS = ["#f97316", "#fdba74", "#fb923c", "#ea580c", "#c2410c"];
 
 interface TodayBooking {
   id: number;
   time: string | null;
   partySize: number | null;
   status: string | null;
+  tableNumber: number | null;
   aiPlatform: string | null;
   customerFirstName: string | null;
   customerLastName: string | null;
@@ -57,6 +63,8 @@ interface StatsData {
   upcomingCount: number;
   totalBookings: number;
   todayCapacity: number;
+  filledTables: number;
+  filledTablesCount: number;
   todayHours: string;
   platformStats: PlatformStat[];
   weeklyBookings: WeeklyBooking[];
@@ -71,26 +79,33 @@ interface ProviderData {
 function formatWeekday(dateStr: string) {
   try {
     const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", { weekday: "short" });
+    return d.toLocaleDateString("en-US", { weekday: "short" }).charAt(0).toUpperCase();
   } catch {
     return dateStr;
   }
+}
+
+function getBusyLabel(percentage: number): string {
+  if (percentage >= 80) return "Busy";
+  if (percentage >= 50) return "Moderate";
+  return "Quiet";
 }
 
 function LoadingSkeleton() {
   return (
     <div className="space-y-8 animate-pulse">
       <div className="h-8 w-64 bg-gray-200 rounded" />
+      <div className="h-5 w-80 bg-gray-200 rounded" />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="h-24 bg-gray-200 rounded-lg" />
         ))}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="h-72 bg-gray-200 rounded-lg" />
+        <div className="h-80 bg-gray-200 rounded-lg" />
         <div className="space-y-6">
           <div className="h-64 bg-gray-200 rounded-lg" />
-          <div className="h-56 bg-gray-200 rounded-lg" />
+          <div className="h-64 bg-gray-200 rounded-lg" />
         </div>
       </div>
     </div>
@@ -103,6 +118,7 @@ export default function OverviewPage() {
     "/api/providers/me/stats",
     fetcher
   );
+  const [todayPage, setTodayPage] = useState(1);
 
   if (isLoading || !stats || !stats.weeklyBookings) {
     return <LoadingSkeleton />;
@@ -123,6 +139,13 @@ export default function OverviewPage() {
     value: p.percentage,
   }));
 
+  // Find dominant platform for center label
+  const dominantPlatform = stats.platformStats?.length
+    ? stats.platformStats.reduce((max, p) => (p.percentage > max.percentage ? p : max), stats.platformStats[0])
+    : null;
+
+  const filledPercent = stats.filledTables ?? 0;
+
   const statCards = [
     {
       title: "Today",
@@ -140,15 +163,9 @@ export default function OverviewPage() {
       label: "",
     },
     {
-      title: "Fill rate",
-      value:
-        stats.todayCapacity > 0
-          ? `${Math.round((stats.todayCount / stats.todayCapacity) * 100)}%`
-          : "N/A",
-      label:
-        stats.todayCapacity > 0
-          ? `${stats.todayCount} / ${stats.todayCapacity} slots`
-          : "No slots today",
+      title: "Filled tables",
+      value: `${filledPercent}%`,
+      label: getBusyLabel(filledPercent),
     },
   ];
 
@@ -196,54 +213,66 @@ export default function OverviewPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {(stats.todayBookings || []).length === 0 ? (
-              <p className="text-gray-500 text-sm py-6 text-center">
-                No reservations for today yet.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Guests</TableHead>
-                    <TableHead>Platform</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(stats.todayBookings || []).map((b) => (
-                    <TableRow key={b.id}>
-                      <TableCell className="font-medium">
-                        {b.time || "-"}
-                      </TableCell>
-                      <TableCell>
-                        {[b.customerFirstName, b.customerLastName]
-                          .filter(Boolean)
-                          .join(" ") || "-"}
-                      </TableCell>
-                      <TableCell>{b.partySize ?? "-"}</TableCell>
-                      <TableCell>{b.aiPlatform || "-"}</TableCell>
-                      <TableCell>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                            b.status === "confirmed"
-                              ? "bg-green-100 text-green-700"
-                              : b.status === "cancelled"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-yellow-100 text-yellow-700"
-                          }`}
-                        >
-                          {b.status || "pending"}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              </div>
-            )}
+            {(() => {
+              const allToday = stats.todayBookings || [];
+              const todayTotalPages = Math.max(1, Math.ceil(allToday.length / DASHBOARD_PAGE_SIZE));
+              const paginatedToday = allToday.slice(
+                (todayPage - 1) * DASHBOARD_PAGE_SIZE,
+                todayPage * DASHBOARD_PAGE_SIZE
+              );
+
+              if (allToday.length === 0) {
+                return (
+                  <p className="text-gray-500 text-sm py-6 text-center">
+                    No reservations for today yet.
+                  </p>
+                );
+              }
+
+              return (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="font-semibold text-gray-700">Time</TableHead>
+                          <TableHead className="font-semibold text-gray-700">Name</TableHead>
+                          <TableHead className="font-semibold text-gray-700">Guests</TableHead>
+                          <TableHead className="font-semibold text-gray-700">Table</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedToday.map((b) => (
+                          <TableRow key={b.id}>
+                            <TableCell className="font-semibold text-gray-900">
+                              {b.time || "-"}
+                            </TableCell>
+                            <TableCell className="text-gray-700">
+                              {[b.customerFirstName, b.customerLastName]
+                                .filter(Boolean)
+                                .join(" ") || "-"}
+                            </TableCell>
+                            <TableCell className="text-gray-700">
+                              {b.partySize ?? "-"}
+                            </TableCell>
+                            <TableCell className="text-gray-700">
+                              {b.tableNumber ?? "-"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <PaginationControls
+                    currentPage={todayPage}
+                    totalPages={todayTotalPages}
+                    totalItems={allToday.length}
+                    pageSize={DASHBOARD_PAGE_SIZE}
+                    onPageChange={setTodayPage}
+                  />
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
 
@@ -254,7 +283,7 @@ export default function OverviewPage() {
             <CardHeader>
               <div className="flex items-baseline justify-between">
                 <CardTitle className="text-lg font-semibold text-gray-900">
-                  AI reservations this week
+                  AI reservation this week
                 </CardTitle>
                 <div className="text-right">
                   <span className="text-2xl font-bold text-gray-900">
@@ -304,7 +333,7 @@ export default function OverviewPage() {
           <Card className="bg-white border border-gray-200 shadow-sm">
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-gray-900">
-                Reservations per AI platform
+                Reservation per AI platform
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -313,18 +342,19 @@ export default function OverviewPage() {
                   No platform data available yet.
                 </p>
               ) : (
-                <div className="flex flex-col sm:flex-row items-center gap-6">
-                  <div className="h-44 w-44 flex-shrink-0">
+                <div className="flex flex-col items-center">
+                  <div className="h-52 w-52">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
                           data={pieData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={40}
-                          outerRadius={70}
+                          innerRadius={55}
+                          outerRadius={85}
                           paddingAngle={3}
                           dataKey="value"
+                          strokeWidth={0}
                         >
                           {pieData.map((entry, index) => (
                             <Cell
@@ -336,12 +366,39 @@ export default function OverviewPage() {
                               }
                             />
                           ))}
+                          {dominantPlatform && (
+                            <Label
+                              content={() => (
+                                <text
+                                  x="50%"
+                                  y="50%"
+                                  textAnchor="middle"
+                                  dominantBaseline="middle"
+                                >
+                                  <tspan
+                                    x="50%"
+                                    dy="-8"
+                                    className="fill-gray-700 text-sm"
+                                  >
+                                    {dominantPlatform.platform}
+                                  </tspan>
+                                  <tspan
+                                    x="50%"
+                                    dy="22"
+                                    className="fill-gray-900 text-lg font-bold"
+                                  >
+                                    {dominantPlatform.percentage}%
+                                  </tspan>
+                                </text>
+                              )}
+                            />
+                          )}
                         </Pie>
                         <Tooltip />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="space-y-3">
+                  <div className="flex flex-wrap justify-center gap-4 mt-4">
                     {stats.platformStats.map((entry, index) => (
                       <div
                         key={entry.platform}
@@ -359,7 +416,7 @@ export default function OverviewPage() {
                         <span className="text-sm text-gray-700">
                           {entry.platform}
                         </span>
-                        <span className="text-sm font-semibold text-gray-900 ml-auto">
+                        <span className="text-sm font-semibold text-gray-900">
                           {entry.percentage}%
                         </span>
                       </div>

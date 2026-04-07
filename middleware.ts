@@ -1,13 +1,20 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { auth } from '@/lib/auth/auth-config';
 
-const protectedPrefixes = ['/dashboard', '/overview', '/reservations', '/booking-types', '/settings', '/pricing', '/onboarding', '/admin'];
+const protectedPrefixes = [
+  '/dashboard',
+  '/overview',
+  '/reservations',
+  '/booking-types',
+  '/settings',
+  '/pricing',
+  '/onboarding',
+  '/admin',
+];
 
-export async function middleware(request: NextRequest) {
+export default auth((request) => {
   const { pathname } = request.nextUrl;
 
-  // Allow public paths
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/auth') ||
@@ -22,23 +29,26 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const isProtectedRoute = protectedPrefixes.some(p => pathname.startsWith(p));
+  const isProtectedRoute = protectedPrefixes.some((p) => pathname.startsWith(p));
 
   if (isProtectedRoute) {
-    const token = await getToken({ req: request, secret: process.env.AUTH_SECRET });
-
-    if (!token) {
+    const user = request.auth?.user;
+    if (!user?.email) {
       return NextResponse.redirect(new URL('/sign-in', request.url));
     }
 
-    // Role-based access: admin routes only for admin role
-    if (pathname.startsWith('/admin') && token.role !== 'admin') {
+    const role = (user as { role?: string }).role;
+    // Redirect admin users away from normal user pages to admin panel
+    if (role === 'admin' && pathname === '/overview') {
+      return NextResponse.redirect(new URL('/admin', request.url));
+    }
+    if (pathname.startsWith('/admin') && role !== 'admin') {
       return NextResponse.redirect(new URL('/overview', request.url));
     }
   }
 
   return NextResponse.next();
-}
+});
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],

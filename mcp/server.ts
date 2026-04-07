@@ -103,7 +103,7 @@ server.tool(
   'check_availability',
   'Check real-time availability for a specific restaurant or business. Returns available time slots and alternatives.',
   {
-    provider_id: z.number().describe('Provider ID from search results'),
+    provider_id: z.string().describe('Provider UUID from search results'),
     date: z.string().describe('Date in YYYY-MM-DD format'),
     time: z.string().optional().describe('Preferred time in HH:MM format'),
     party_size: z.number().optional().describe('Number of guests'),
@@ -149,8 +149,8 @@ server.tool(
   'create_booking',
   'Create a booking at a restaurant or business. The slot is held for 300 seconds (5 minutes). Payment and confirmation are handled by the booking partner.',
   {
-    provider_id: z.number().describe('Provider ID'),
-    booking_type_id: z.number().describe('Booking type ID from availability check'),
+    provider_id: z.string().describe('Provider UUID'),
+    booking_type_id: z.string().describe('Booking type UUID from availability check'),
     date: z.string().describe('Date in YYYY-MM-DD format'),
     time: z.string().describe('Time in HH:MM format'),
     party_size: z.number().describe('Number of guests'),
@@ -205,7 +205,7 @@ server.tool(
   'get_booking_status',
   'Check the current status of a booking by its ID.',
   {
-    booking_id: z.number().describe('Booking ID'),
+    booking_id: z.string().describe('Booking UUID'),
   },
   async (args) => {
     try {
@@ -266,8 +266,8 @@ server.resource(
     mimeType: 'application/json',
   },
   async (uri, params) => {
-    const providerId = Number(params.id);
-    if (isNaN(providerId)) {
+    const providerId = params.id as string;
+    if (!providerId) {
       return { contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify({ error: 'Invalid provider ID' }) }] };
     }
 
@@ -284,7 +284,7 @@ server.resource(
     const [location] = await db
       .select()
       .from(providerLocations)
-      .where(eq(providerLocations.providerId, providerId))
+      .where(eq(providerLocations.providerId, provider.id))
       .limit(1);
 
     const detail = {

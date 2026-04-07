@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({
-      results: results.map(r => ({
+      results: results.map((r: any) => ({
         id: r.id,
         name: r.name,
         slug: r.slug,

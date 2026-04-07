@@ -34,17 +34,11 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const {
-      name,
-      email,
-      phone,
-      website,
-      description,
-      streetAddress,
-      city,
-      postalCode,
-      country,
-      latitude,
-      longitude,
+      name, email, phone, website, description, category,
+      streetAddress, city, postalCode, country, latitude, longitude,
+      cuisineType, tags, atmosphere, priceRange, priceRangeFrom, priceRangeTo,
+      minGuestSize, maxGuestSize,
+      diningInterests, businessGoals, experienceLevel,
     } = body;
 
     if (!name || !streetAddress || !city || !postalCode) {
@@ -55,9 +49,14 @@ export async function POST(request: Request) {
     }
 
     // Check if user already has a provider
-    const existingByEmail = await db.select().from(providers).where(eq(providers.dashboardEmail, user.email)).limit(1);
-    if (existingByEmail.length > 0) {
-      return NextResponse.json(existingByEmail[0], { status: 200 });
+    const [existingProvider] = await db.select().from(providers).where(eq(providers.userId, user.id)).limit(1);
+    if (existingProvider) {
+      return NextResponse.json(existingProvider, { status: 200 });
+    }
+    // Fallback: legacy email check
+    const [existingByEmail] = await db.select().from(providers).where(eq(providers.dashboardEmail, user.email)).limit(1);
+    if (existingByEmail) {
+      return NextResponse.json(existingByEmail, { status: 200 });
     }
 
     // Generate slug from name
@@ -92,6 +91,7 @@ export async function POST(request: Request) {
       .insert(providers)
       .values({
         integrationId: integration.id,
+        userId: user.id,
         name,
         slug,
         description: description || null,
@@ -100,8 +100,28 @@ export async function POST(request: Request) {
         website: website || null,
         dashboardEmail: user.email,
         status: 'active',
+        // Step 3: Cuisine & Style
+        cuisineType: cuisineType?.length ? cuisineType : [],
+        tags: tags?.length ? tags : [],
+        // Step 4: Atmosphere & Pricing
+        atmosphere: atmosphere?.length ? atmosphere : [],
+        priceRange: priceRange || null,
+        priceRangeFrom: priceRangeFrom || null,
+        priceRangeTo: priceRangeTo || null,
+        minGuestSize: minGuestSize || 1,
+        maxGuestSize: maxGuestSize || 20,
       })
       .returning();
+
+    // Save owner preferences to user record (Step 5)
+    if (diningInterests?.length || businessGoals?.length || experienceLevel) {
+      await db.update(users).set({
+        diningInterests: diningInterests?.length ? diningInterests : [],
+        businessGoals: businessGoals?.length ? businessGoals : [],
+        experienceLevel: experienceLevel || null,
+        updatedAt: new Date(),
+      }).where(eq(users.id, user.id));
+    }
 
     // Create provider location
     await db.insert(providerLocations).values({

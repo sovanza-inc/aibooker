@@ -14,7 +14,7 @@ import { eq, and, gte, lte, ilike, sql, asc, or } from 'drizzle-orm';
 export async function validateApiKey(apiKey: string) {
   // Check master key for testing
   if (process.env.AI_MASTER_KEY && apiKey === process.env.AI_MASTER_KEY) {
-    return { id: 0, source: 'master', teamId: 0 };
+    return { id: 'master', source: 'master', teamId: 'master' };
   }
 
   const [integration] = await db
@@ -144,7 +144,7 @@ export async function searchProviders(filters: {
 
 /** Get availability for a specific provider */
 export async function getProviderAvailability(
-  providerId: number,
+  providerId: string,
   date?: string,
   time?: string,
   partySize?: number
@@ -174,7 +174,6 @@ export async function getProviderAvailability(
   }
 
   if (time) {
-    // Find slots within 2 hours of requested time
     slotConditions.push(
       sql`${availabilitySlots.startTime} >= ${time}`
     );
@@ -194,7 +193,7 @@ export async function getProviderAvailability(
       endTime: availabilitySlots.endTime,
       capacity: availabilitySlots.capacity,
       maxPartySize: availabilitySlots.maxPartySize,
-      bookingTypeId: availabilitySlots.bookingTypeId,
+      bookingTypeId: bookingTypes.id,
       bookingTypeName: bookingTypes.name,
     })
     .from(availabilitySlots)
@@ -262,8 +261,8 @@ export async function getProviderAvailability(
 
 /** Create a booking with 300s hold */
 export async function createBookingWithHold(data: {
-  providerId: number;
-  bookingTypeId: number;
+  providerId: string;
+  bookingTypeId: string;
   date: string;
   time: string;
   partySize: number;
@@ -334,7 +333,7 @@ export async function createBookingWithHold(data: {
 }
 
 /** Get booking status */
-export async function getBookingStatus(bookingId: number) {
+export async function getBookingStatus(bookingId: string) {
   const [booking] = await db
     .select({
       id: bookings.id,

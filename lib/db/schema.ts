@@ -1,6 +1,6 @@
 import {
   pgTable,
-  serial,
+  uuid,
   varchar,
   text,
   timestamp,
@@ -14,7 +14,7 @@ import {
 import { relations } from 'drizzle-orm';
 
 export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
+  id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 100 }),
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: text('password_hash'), // nullable for social login
@@ -23,13 +23,17 @@ export const users = pgTable('users', {
   emailVerified: timestamp('email_verified'),
   authProvider: varchar('auth_provider', { length: 20 }), // google | github | credentials
   authProviderId: varchar('auth_provider_id', { length: 255 }), // external ID from OAuth
+  // Owner preferences (collected during onboarding)
+  diningInterests: json('dining_interests').$type<string[]>().default([]),
+  businessGoals: json('business_goals').$type<string[]>().default([]),
+  experienceLevel: varchar('experience_level', { length: 30 }), // new | established | veteran | chain
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   deletedAt: timestamp('deleted_at'),
 });
 
 export const teams = pgTable('teams', {
-  id: serial('id').primaryKey(),
+  id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 100 }).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -41,11 +45,11 @@ export const teams = pgTable('teams', {
 });
 
 export const teamMembers = pgTable('team_members', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id')
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
     .notNull()
     .references(() => users.id),
-  teamId: integer('team_id')
+  teamId: uuid('team_id')
     .notNull()
     .references(() => teams.id),
   role: varchar('role', { length: 50 }).notNull(),
@@ -53,24 +57,24 @@ export const teamMembers = pgTable('team_members', {
 });
 
 export const activityLogs = pgTable('activity_logs', {
-  id: serial('id').primaryKey(),
-  teamId: integer('team_id')
+  id: uuid('id').defaultRandom().primaryKey(),
+  teamId: uuid('team_id')
     .notNull()
     .references(() => teams.id),
-  userId: integer('user_id').references(() => users.id),
+  userId: uuid('user_id').references(() => users.id),
   action: text('action').notNull(),
   timestamp: timestamp('timestamp').notNull().defaultNow(),
   ipAddress: varchar('ip_address', { length: 45 }),
 });
 
 export const invitations = pgTable('invitations', {
-  id: serial('id').primaryKey(),
-  teamId: integer('team_id')
+  id: uuid('id').defaultRandom().primaryKey(),
+  teamId: uuid('team_id')
     .notNull()
     .references(() => teams.id),
   email: varchar('email', { length: 255 }).notNull(),
   role: varchar('role', { length: 50 }).notNull(),
-  invitedBy: integer('invited_by')
+  invitedBy: uuid('invited_by')
     .notNull()
     .references(() => users.id),
   invitedAt: timestamp('invited_at').notNull().defaultNow(),
@@ -123,8 +127,8 @@ export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
 
 // OAuth Accounts — for social login linking
 export const accounts = pgTable('accounts', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id')
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   type: varchar('type', { length: 50 }).notNull(), // oauth | credentials
@@ -153,8 +157,8 @@ export const accountsRelations = relations(accounts, ({ one }) => ({
 
 // Integrations — one per restaurant per booking partner (e.g. Jimani)
 export const integrations = pgTable('integrations', {
-  id: serial('id').primaryKey(),
-  teamId: integer('team_id')
+  id: uuid('id').defaultRandom().primaryKey(),
+  teamId: uuid('team_id')
     .notNull()
     .references(() => teams.id),
   source: varchar('source', { length: 50 }).notNull(), // "jimani", "zenchef"
@@ -172,8 +176,9 @@ export const integrations = pgTable('integrations', {
 
 // Providers — restaurants, salons, etc.
 export const providers = pgTable('providers', {
-  id: serial('id').primaryKey(),
-  integrationId: integer('integration_id')
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id),
+  integrationId: uuid('integration_id')
     .notNull()
     .unique()
     .references(() => integrations.id),
@@ -189,7 +194,6 @@ export const providers = pgTable('providers', {
   rating: doublePrecision('rating'),
   status: varchar('status', { length: 20 }).notNull().default('onboarding'), // onboarding | active | paused
   dashboardEmail: varchar('dashboard_email', { length: 255 }).unique(),
-  dashboardPasswordHash: text('dashboard_password_hash'),
   // Business info fields (AI context — from Settings > Business Information)
   logo: varchar('logo', { length: 500 }),
   aboutCompany: text('about_company'),
@@ -213,12 +217,14 @@ export const providers = pgTable('providers', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => [
   index('providers_status_idx').on(table.status),
+  index('providers_dashboard_email_idx').on(table.dashboardEmail),
+  index('providers_user_id_idx').on(table.userId),
 ]);
 
 // Provider Locations — address + geo
 export const providerLocations = pgTable('provider_locations', {
-  id: serial('id').primaryKey(),
-  providerId: integer('provider_id')
+  id: uuid('id').defaultRandom().primaryKey(),
+  providerId: uuid('provider_id')
     .notNull()
     .unique()
     .references(() => providers.id, { onDelete: 'cascade' }),
@@ -237,8 +243,8 @@ export const providerLocations = pgTable('provider_locations', {
 
 // Booking Types — "Lunch", "Dinner", etc.
 export const bookingTypes = pgTable('booking_types', {
-  id: serial('id').primaryKey(),
-  providerId: integer('provider_id')
+  id: uuid('id').defaultRandom().primaryKey(),
+  providerId: uuid('provider_id')
     .notNull()
     .references(() => providers.id, { onDelete: 'cascade' }),
   externalId: varchar('external_id', { length: 255 }).notNull(),
@@ -260,8 +266,8 @@ export const bookingTypes = pgTable('booking_types', {
 
 // Availability Slots — time slots synced from partner
 export const availabilitySlots = pgTable('availability_slots', {
-  id: serial('id').primaryKey(),
-  bookingTypeId: integer('booking_type_id')
+  id: uuid('id').defaultRandom().primaryKey(),
+  bookingTypeId: uuid('booking_type_id')
     .notNull()
     .references(() => bookingTypes.id, { onDelete: 'cascade' }),
   date: timestamp('date', { mode: 'date' }).notNull(),
@@ -280,8 +286,8 @@ export const availabilitySlots = pgTable('availability_slots', {
 
 // Opening Hours — daily schedule for providers
 export const openingHours = pgTable('opening_hours', {
-  id: serial('id').primaryKey(),
-  providerId: integer('provider_id')
+  id: uuid('id').defaultRandom().primaryKey(),
+  providerId: uuid('provider_id')
     .notNull()
     .references(() => providers.id, { onDelete: 'cascade' }),
   date: timestamp('date', { mode: 'date' }).notNull(),
@@ -295,12 +301,11 @@ export const openingHours = pgTable('opening_hours', {
 
 // Customer Leads — end customers who book through AI
 export const customerLeads = pgTable('customer_leads', {
-  id: serial('id').primaryKey(),
+  id: uuid('id').defaultRandom().primaryKey(),
   email: varchar('email', { length: 255 }),
   phone: varchar('phone', { length: 50 }),
   firstName: varchar('first_name', { length: 100 }),
   lastName: varchar('last_name', { length: 100 }),
-  fingerprint: varchar('fingerprint', { length: 255 }).unique(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => [
@@ -310,14 +315,14 @@ export const customerLeads = pgTable('customer_leads', {
 
 // Bookings — actual reservations
 export const bookings = pgTable('bookings', {
-  id: serial('id').primaryKey(),
-  providerId: integer('provider_id')
+  id: uuid('id').defaultRandom().primaryKey(),
+  providerId: uuid('provider_id')
     .notNull()
     .references(() => providers.id),
-  bookingTypeId: integer('booking_type_id')
+  bookingTypeId: uuid('booking_type_id')
     .notNull()
     .references(() => bookingTypes.id),
-  customerLeadId: integer('customer_lead_id')
+  customerLeadId: uuid('customer_lead_id')
     .notNull()
     .references(() => customerLeads.id),
   date: timestamp('date', { mode: 'date' }).notNull(),
@@ -330,9 +335,8 @@ export const bookings = pgTable('bookings', {
   // pending | held | confirmed | cancelled | no_show | completed
   holdExpiresAt: timestamp('hold_expires_at'),
   heldAt: timestamp('held_at'),
+  tableNumber: integer('table_number'),
   aiPlatform: varchar('ai_platform', { length: 50 }), // "openai" | "gemini" | "claude"
-  clickId: varchar('click_id', { length: 255 }),
-  leadId: varchar('lead_id', { length: 255 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   confirmedAt: timestamp('confirmed_at'),
@@ -345,11 +349,11 @@ export const bookings = pgTable('bookings', {
 
 // Webhook Logs — track all incoming webhooks
 export const webhookLogs = pgTable('webhook_logs', {
-  id: serial('id').primaryKey(),
+  id: uuid('id').defaultRandom().primaryKey(),
   source: varchar('source', { length: 50 }).notNull(),
   eventType: varchar('event_type', { length: 100 }).notNull(),
   externalEventId: varchar('external_event_id', { length: 255 }),
-  integrationId: integer('integration_id'),
+  integrationId: uuid('integration_id'),
   payload: json('payload').notNull(),
   status: varchar('status', { length: 20 }).notNull().default('received'),
   // received | processing | processed | failed

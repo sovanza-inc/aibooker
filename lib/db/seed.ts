@@ -59,7 +59,7 @@ async function seed() {
   const [integration] = await db
     .insert(integrations)
     .values({
-      teamId: teamId || 1,
+      teamId: teamId!,
       source: 'jimani',
       externalId: 'rest_8472',
       status: 'active',
@@ -89,7 +89,6 @@ async function seed() {
       rating: 4.6,
       status: 'active',
       dashboardEmail: 'martijn@jimani.nl',
-      dashboardPasswordHash: passwordHash,
       // Business info
       aboutCompany: 'La Piazza is a family-owned Italian restaurant that has been serving authentic Italian cuisine since 2010. Our chef trained in Naples and brings the true taste of Italy to Amsterdam.',
       whatIsThisBusiness: 'An authentic Italian restaurant with terrace seating in Amsterdam De Pijp neighborhood.',

@@ -87,14 +87,15 @@ export async function getProviderStats(providerId: string) {
       )
     );
 
-  // Today's opening hours
+  // Today's opening hours — use date range to avoid timezone mismatch
   const [todayHours] = await db
     .select()
     .from(openingHours)
     .where(
       and(
         eq(openingHours.providerId, providerId),
-        eq(openingHours.date, today)
+        gte(openingHours.date, today),
+        lte(openingHours.date, tomorrow)
       )
     )
     .limit(1);

@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(curl -s http://localhost:3001/health)",
+      "Bash(npx tsx:*)",
+      "Bash(curl:*)",
+      "Bash(xargs grep:*)",
+      "Bash(npx tsc:*)",
+      "Bash(python3 -c \"import sys,json; r=json.load\\(sys.stdin\\); print\\(r['result']['content'][0]['text'][:500]\\)\")",
+      "Read(//c/Users/Admin/Downloads/**)",
+      "Read(//c/Users/Admin/AppData/Local/Programs/**)",
+      "Read(//c/Users/Admin/AppData/Local/**)",
+      "Bash(cat \"/c/Users/Admin/AppData/Roaming/Claude/logs/\"*.log)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(ls .env*)",
+      "Bash(npx drizzle-kit:*)",
+      "Bash(npx next:*)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(rm:*)",
+      "Bash(grep -E \"^.*/\\(page|layout\\)\\\\.tsx$\")",
+      "Bash(rm -f \"D:\\\\Sovanza\\\\aibooker\\\\.next\\\\dev\\\\lock\")",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(node -e ':*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "aibooker"
+  ]
+}

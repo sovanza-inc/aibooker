@@ -104,7 +104,11 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
         toast.error(msg);
       } else if (result?.ok) {
         toast.success('Signed in successfully!');
-        window.location.href = '/overview';
+        // Fetch session to check role and redirect accordingly
+        const sessionRes = await fetch('/api/auth/session');
+        const session = await sessionRes.json();
+        const role = session?.user?.role;
+        window.location.href = role === 'admin' ? '/admin' : '/overview';
       } else {
         setCredentialError('Sign-in failed. Please try again.');
         toast.error('Sign-in failed. Please try again.');

@@ -7,9 +7,6 @@ import {
   bookings,
   customerLeads,
   openingHours,
-  integrations,
-  users,
-  teamMembers,
 } from './schema';
 import { eq, and, desc, gte, lte, sql, count, asc } from 'drizzle-orm';
 import { getAuthenticatedUser } from '@/lib/auth/api-auth';
@@ -19,43 +16,27 @@ export async function getProviderForUser() {
   const user = await getAuthenticatedUser();
   if (!user) return null;
 
-  // Find provider where dashboardEmail matches user email
-  const result = await db
+  // Primary: direct userId FK lookup (single query)
+  const [byUserId] = await db
+    .select()
+    .from(providers)
+    .where(eq(providers.userId, user.id))
+    .limit(1);
+  if (byUserId) return byUserId;
+
+  // Fallback: legacy email match (kept until all providers have userId set)
+  const [byEmail] = await db
     .select()
     .from(providers)
     .where(eq(providers.dashboardEmail, user.email))
     .limit(1);
+  if (byEmail) return byEmail;
 
-  if (result.length > 0) return result[0];
-
-  // Fallback: find provider via team → integration → provider
-  const teamResult = await db
-    .select({ teamId: teamMembers.teamId })
-    .from(teamMembers)
-    .where(eq(teamMembers.userId, user.id))
-    .limit(1);
-
-  if (teamResult.length === 0) return null;
-
-  const intResult = await db
-    .select()
-    .from(integrations)
-    .where(eq(integrations.teamId, teamResult[0].teamId))
-    .limit(1);
-
-  if (intResult.length === 0) return null;
-
-  const provResult = await db
-    .select()
-    .from(providers)
-    .where(eq(providers.integrationId, intResult[0].id))
-    .limit(1);
-
-  return provResult[0] || null;
+  return null;
 }
 
 /** Get provider with location */
-export async function getProviderWithLocation(providerId: number) {
+export async function getProviderWithLocation(providerId: string) {
   const [provider] = await db
     .select()
     .from(providers)
@@ -74,7 +55,7 @@ export async function getProviderWithLocation(providerId: number) {
 }
 
 /** Get dashboard stats for a provider */
-export async function getProviderStats(providerId: number) {
+export async function getProviderStats(providerId: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
@@ -166,13 +147,33 @@ export async function getProviderStats(providerId: number) {
       )
     );
 
+  // Filled tables: count of distinct table numbers used today vs total capacity
+  const todayBookingsWithTables = await db
+    .select({ tableNumber: bookings.tableNumber })
+    .from(bookings)
+    .where(
+      and(
+        eq(bookings.providerId, providerId),
+        gte(bookings.date, today),
+        lte(bookings.date, tomorrow),
+        sql`${bookings.tableNumber} IS NOT NULL`
+      )
+    );
+
+  const uniqueTablesUsed = new Set(todayBookingsWithTables.map((b) => b.tableNumber)).size;
+  const todayCapacityNum = Number(todayCapacityResult?.total || 0);
+
   const totalPlatform = platformStats.reduce((sum, p) => sum + Number(p.count), 0);
 
   return {
     todayCount: Number(todayCount?.count || 0),
     upcomingCount: Number(upcomingCount?.count || 0),
     totalBookings: Number(totalBookings?.count || 0),
-    todayCapacity: Number(todayCapacityResult?.total || 0),
+    todayCapacity: todayCapacityNum,
+    filledTables: todayCapacityNum > 0
+      ? Math.round((uniqueTablesUsed / todayCapacityNum) * 100)
+      : uniqueTablesUsed > 0 ? 100 : 0,
+    filledTablesCount: uniqueTablesUsed,
     todayHours: todayHours
       ? todayHours.isClosed
         ? 'Closed'
@@ -191,7 +192,7 @@ export async function getProviderStats(providerId: number) {
 }
 
 /** Get today's bookings for a provider */
-export async function getTodayBookings(providerId: number) {
+export async function getTodayBookings(providerId: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
@@ -203,6 +204,7 @@ export async function getTodayBookings(providerId: number) {
       time: bookings.time,
       partySize: bookings.partySize,
       status: bookings.status,
+      tableNumber: bookings.tableNumber,
       aiPlatform: bookings.aiPlatform,
       customerFirstName: customerLeads.firstName,
       customerLastName: customerLeads.lastName,
@@ -221,7 +223,7 @@ export async function getTodayBookings(providerId: number) {
 
 /** Get all bookings for a provider with filters */
 export async function getProviderBookings(
-  providerId: number,
+  providerId: string,
   filters?: { status?: string; platform?: string; dateFrom?: string; dateTo?: string }
 ) {
   const conditions = [eq(bookings.providerId, providerId)];
@@ -266,19 +268,52 @@ export async function getProviderBookings(
     .limit(100);
 }
 
-/** Get booking types for a provider */
-export async function getProviderBookingTypes(providerId: number) {
-  return db
+/** Get booking types for a provider (with today's availability) */
+export async function getProviderBookingTypes(providerId: string) {
+  const types = await db
     .select()
     .from(bookingTypes)
     .where(eq(bookingTypes.providerId, providerId))
     .orderBy(asc(bookingTypes.name));
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // Fetch today's availability slots for each booking type
+  const typesWithAvailability = await Promise.all(
+    types.map(async (bt) => {
+      const slots = await db
+        .select()
+        .from(availabilitySlots)
+        .where(
+          and(
+            eq(availabilitySlots.bookingTypeId, bt.id),
+            gte(availabilitySlots.date, today),
+            lte(availabilitySlots.date, tomorrow)
+          )
+        )
+        .orderBy(asc(availabilitySlots.startTime))
+        .limit(1);
+
+      const slot = slots[0];
+      return {
+        ...bt,
+        todayAvailability: slot
+          ? `${slot.startTime} - ${slot.endTime}`
+          : null,
+      };
+    })
+  );
+
+  return typesWithAvailability;
 }
 
 /** Update a booking type */
 export async function updateBookingType(
-  bookingTypeId: number,
-  providerId: number,
+  bookingTypeId: string,
+  providerId: string,
   data: {
     name?: string;
     description?: string;
@@ -299,7 +334,7 @@ export async function updateBookingType(
 
 /** Update provider settings */
 export async function updateProviderSettings(
-  providerId: number,
+  providerId: string,
   data: Partial<typeof providers.$inferInsert>
 ) {
   return db
@@ -311,7 +346,7 @@ export async function updateProviderSettings(
 
 /** Update provider location */
 export async function updateProviderLocation(
-  providerId: number,
+  providerId: string,
   data: Partial<typeof providerLocations.$inferInsert>
 ) {
   const existing = await db
@@ -335,7 +370,7 @@ export async function updateProviderLocation(
 }
 
 /** Get opening hours for a provider by month */
-export async function getProviderOpeningHours(providerId: number, year: number, month: number) {
+export async function getProviderOpeningHours(providerId: string, year: number, month: number) {
   const startDate = new Date(year, month, 1);
   const endDate = new Date(year, month + 1, 0);
 
@@ -354,7 +389,7 @@ export async function getProviderOpeningHours(providerId: number, year: number, 
 
 /** Upsert opening hours for a provider */
 export async function upsertOpeningHours(
-  providerId: number,
+  providerId: string,
   hours: { date: Date; openTime: string | null; closeTime: string | null; isClosed: boolean }[]
 ) {
   for (const h of hours) {
@@ -382,7 +417,7 @@ export async function upsertOpeningHours(
 }
 
 /** Confirm a booking */
-export async function confirmBooking(bookingId: number, providerId: number) {
+export async function confirmBooking(bookingId: string, providerId: string) {
   return db
     .update(bookings)
     .set({ status: 'confirmed', confirmedAt: new Date(), updatedAt: new Date() })
@@ -391,7 +426,7 @@ export async function confirmBooking(bookingId: number, providerId: number) {
 }
 
 /** Cancel a booking */
-export async function cancelBooking(bookingId: number, providerId: number) {
+export async function cancelBooking(bookingId: string, providerId: string) {
   return db
     .update(bookings)
     .set({ status: 'cancelled', cancelledAt: new Date(), updatedAt: new Date() })

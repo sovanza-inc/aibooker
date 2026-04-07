@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Download } from "lucide-react";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+
+const PAGE_SIZE = 15;
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -120,6 +123,7 @@ export default function ReservationsPage() {
   const [platformFilter, setPlatformFilter] = useState(ALL);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Reservation | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Build query string
   const params = new URLSearchParams();
@@ -136,7 +140,20 @@ export default function ReservationsPage() {
     keepPreviousData: true,
   });
 
-  const reservations = data ?? [];
+  const allReservations = data ?? [];
+
+  // Reset page when filters change
+  const filterKey = `${dateFilter}-${statusFilter}-${platformFilter}`;
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterKey]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(allReservations.length / PAGE_SIZE));
+  const reservations = allReservations.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
   /* ---- Confirm / Cancel action ---- */
   const handleAction = useCallback(
@@ -256,8 +273,8 @@ export default function ReservationsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => exportCSV(reservations)}
-                disabled={reservations.length === 0}
+                onClick={() => exportCSV(allReservations)}
+                disabled={allReservations.length === 0}
                 className="gap-2"
               >
                 <Download className="h-4 w-4" />
@@ -275,8 +292,8 @@ export default function ReservationsPage() {
             All Reservations
             {!isLoading && (
               <span className="ml-2 text-sm font-normal text-gray-500">
-                ({reservations.length} result
-                {reservations.length !== 1 ? "s" : ""})
+                ({allReservations.length} result
+                {allReservations.length !== 1 ? "s" : ""})
               </span>
             )}
           </CardTitle>
@@ -380,6 +397,13 @@ export default function ReservationsPage() {
             </Table>
             </div>
           )}
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={allReservations.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+          />
         </CardContent>
       </Card>
 

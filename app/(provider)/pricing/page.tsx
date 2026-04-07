@@ -1,7 +1,8 @@
-import { checkoutAction } from '@/lib/payments/actions';
+import { checkoutAction, customerPortalAction } from '@/lib/payments/actions';
 import { Check } from 'lucide-react';
 import { getStripePrices, getStripeProducts } from '@/lib/payments/stripe';
 import { SubmitButton } from './submit-button';
+import { getTeamForUser } from '@/lib/db/queries';
 
 // Prices are fresh for one hour max
 export const revalidate = 3600;
@@ -30,6 +31,9 @@ export default async function PricingPage() {
     // Stripe not configured yet — show static pricing
   }
 
+  const team = await getTeamForUser();
+  const isSubscribed = team?.subscriptionStatus === 'active' || team?.subscriptionStatus === 'trialing';
+
   const aibookerProduct = products.find((p) => p.name === 'AiBooker') ||
     products.find((p) => p.name === 'Base') ||
     products[0];
@@ -49,9 +53,15 @@ export default async function PricingPage() {
         <div className="md:flex">
           {/* Left: Plan info */}
           <div className="md:w-1/2 p-8 md:border-r border-gray-200">
-            <div className="inline-flex items-center gap-2 rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700 mb-4">
-              Current Plan
-            </div>
+            {isSubscribed ? (
+              <div className="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700 mb-4">
+                {team.subscriptionStatus === 'trialing' ? 'Free Trial' : 'Active'}
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700 mb-4">
+                Current Plan
+              </div>
+            )}
             <h2 className="text-2xl font-bold text-gray-900">AiBooker</h2>
             <p className="text-sm text-gray-500 mt-1">per location</p>
             <div className="mt-4">
@@ -62,12 +72,24 @@ export default async function PricingPage() {
                 / {aibookerPrice?.interval || 'month'}
               </span>
             </div>
-            <p className="mt-2 text-sm text-gray-500">
-              14-day free trial &middot; Cancel anytime
-            </p>
+            {isSubscribed ? (
+              <p className="mt-2 text-sm text-gray-500">
+                {team.subscriptionStatus === 'trialing'
+                  ? 'Your free trial is active'
+                  : 'Your subscription is active'}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-gray-500">
+                14-day free trial &middot; Cancel anytime
+              </p>
+            )}
 
             <div className="mt-8">
-              {aibookerPrice ? (
+              {isSubscribed ? (
+                <form action={customerPortalAction}>
+                  <SubmitButton label="Manage Subscription" />
+                </form>
+              ) : aibookerPrice ? (
                 <form action={checkoutAction}>
                   <input type="hidden" name="priceId" value={aibookerPrice.id} />
                   <SubmitButton />

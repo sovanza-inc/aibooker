@@ -30,7 +30,7 @@ export async function PUT(
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
 
-    const result = await updateBookingType(parseInt(id), provider.id, parsed.data);
+    const result = await updateBookingType(id, provider.id, parsed.data);
 
     if (result.length === 0) {
       return NextResponse.json({ error: 'Booking type not found' }, { status: 404 });

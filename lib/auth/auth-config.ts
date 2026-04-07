@@ -13,7 +13,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     maxAge: 30 * 24 * 60 * 60,
   },
   callbacks: {
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, user, account, profile, trigger }) {
       // On first sign-in, store user info in token
       if (user) {
         token.email = user.email;
@@ -23,6 +23,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (account) {
         token.provider = account.provider;
       }
+      // Fetch role from DB on sign-in or when role is missing
+      if (token.email && (user || !token.role)) {
+        try {
+          const { db } = await import('@/lib/db/drizzle');
+          const { users } = await import('@/lib/db/schema');
+          const { eq } = await import('drizzle-orm');
+          const [dbUser] = await db
+            .select({ role: users.role })
+            .from(users)
+            .where(eq(users.email, token.email as string))
+            .limit(1);
+          if (dbUser) {
+            token.role = dbUser.role;
+          }
+        } catch {
+          // DB unavailable — keep existing role
+        }
+      }
       return token;
     },
     async session({ session, token }) {
@@ -31,6 +49,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.name = token.name as string;
         session.user.image = token.picture as string;
         (session.user as any).provider = token.provider;
+        (session.user as any).role = token.role;
       }
       return session;
     },

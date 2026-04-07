@@ -5,7 +5,7 @@ import { validateApiKey, getBookingStatus } from '@/lib/ai/queries';
 import { checkRateLimit } from '@/lib/ai/rate-limit';
 
 const statusSchema = z.object({
-  booking_id: z.number().int().positive(),
+  booking_id: z.string().uuid('booking_id must be a valid UUID'),
 });
 
 export async function POST(request: NextRequest) {

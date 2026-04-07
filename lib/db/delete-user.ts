@@ -2,7 +2,7 @@ import { db } from './drizzle';
 import { users, teamMembers, teams, accounts, activityLogs, invitations, bookings, customerLeads, availabilitySlots, bookingTypes, openingHours, providerLocations, providers, integrations } from './schema';
 import { eq, and, inArray } from 'drizzle-orm';
 
-async function deleteUser(userId: number) {
+async function deleteUser(userId: string) {
   console.log(`Deleting user ${userId} and all related data...`);
 
   // Get user's teams
@@ -74,7 +74,7 @@ async function deleteUser(userId: number) {
 }
 
 // Get user ID from command line
-const userId = parseInt(process.argv[2]);
+const userId = process.argv[2];
 if (!userId) {
   console.log('Usage: npx tsx lib/db/delete-user.ts <user_id>');
   process.exit(1);

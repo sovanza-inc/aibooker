@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import useSWR from "swr";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
 import { Pencil, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,6 +35,7 @@ interface Provider {
   name: string;
   slug: string;
   description: string | null;
+  logo: string | null;
   cuisineType: string | null;
   tags: string[] | null;
   phone: string | null;
@@ -210,28 +215,36 @@ function BadgeArrayField({
 /*  Jimani connection banner (static UI)                               */
 /* ------------------------------------------------------------------ */
 
-function JimaniBanner() {
+function JimaniBanner({ provider }: { provider: Provider }) {
   return (
-    <Card className="border-green-300 bg-green-50/40 mb-6">
-      <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 py-4">
+    <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded bg-gray-900 flex items-center justify-center">
+              <span className="text-white font-bold text-sm">J</span>
+            </div>
+            <span className="text-lg font-bold text-gray-900">Jimani</span>
+          </div>
+        </div>
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xl font-bold text-orange-500">Jimani</span>
-          <Badge className="bg-green-100 text-green-700 border-green-300 hover:bg-green-100">
+          <Badge className="bg-green-100 text-green-700 border-green-300 hover:bg-green-100 gap-1">
+            <span className="h-2 w-2 rounded-full bg-green-500 inline-block" />
             Connected
           </Badge>
-          <span className="text-sm text-gray-500">
-            Business ID: <span className="font-medium">JIM-00007457</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-red-600 border-red-200 hover:bg-red-50 text-xs"
+          >
+            Disconnect
+          </Button>
+          <span className="text-xs text-gray-400">
+            Business ID: {provider.id}
           </span>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-red-600 border-red-200 hover:bg-red-50"
-        >
-          Disconnect
-        </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -333,6 +346,7 @@ function StandardInformationTab({
           email,
           website,
           phone,
+          priceRange,
           priceRangeFrom: priceRangeFrom ? parseFloat(priceRangeFrom) : null,
           priceRangeTo: priceRangeTo ? parseFloat(priceRangeTo) : null,
           minGuestSize: minGuestSize ? parseInt(minGuestSize) : null,
@@ -359,214 +373,261 @@ function StandardInformationTab({
     }
   };
 
+  const [priceRange, setPriceRange] = useState(provider.priceRange || "mid-range");
+
+  useEffect(() => {
+    setPriceRange(provider.priceRange || "mid-range");
+  }, [provider]);
+
   return (
-    <Card className="bg-white border border-gray-200 shadow-sm">
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Standard information
-          </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => (editing ? handleCancel() : setEditing(true))}
-            className="gap-1.5"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            {editing ? "Cancel" : "Edit"}
-          </Button>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-gray-900">
+          Standard information
+        </h2>
+        <button
+          onClick={() => (editing ? handleCancel() : setEditing(true))}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+          {editing ? "Cancel" : "Edit"}
+        </button>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        {/* Company name */}
+        <div className="grid grid-cols-[160px_1fr] items-center border-b border-gray-100 px-5 py-3">
+          <span className="text-sm text-gray-500">Company name</span>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={!editing}
+            className="max-w-sm border-gray-200"
+          />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-          {/* Company name */}
-          <div className="md:col-span-2">
-            <Label className="text-sm text-gray-600">Company name</Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={!editing}
-              className="mt-1"
-            />
-          </div>
+        {/* Address */}
+        <div className="grid grid-cols-[160px_1fr] items-center border-b border-gray-100 px-5 py-3">
+          <span className="text-sm text-gray-500">Address</span>
+          <Input
+            value={streetAddress}
+            onChange={(e) => setStreetAddress(e.target.value)}
+            disabled={!editing}
+            className="max-w-sm border-gray-200"
+          />
+        </div>
 
-          {/* Address */}
-          <div className="md:col-span-2">
-            <Label className="text-sm text-gray-600">Address</Label>
-            <Input
-              value={streetAddress}
-              onChange={(e) => setStreetAddress(e.target.value)}
-              disabled={!editing}
-              className="mt-1"
-            />
-          </div>
-
-          {/* Zipcode & City */}
-          <div>
-            <Label className="text-sm text-gray-600">Zipcode</Label>
+        {/* Zipcode & Place */}
+        <div className="grid grid-cols-[160px_1fr] items-center border-b border-gray-100 px-5 py-3">
+          <span className="text-sm text-gray-500">Zipcode &amp; Place</span>
+          <div className="flex items-center gap-3 max-w-sm">
             <Input
               value={postalCode}
               onChange={(e) => setPostalCode(e.target.value)}
               disabled={!editing}
-              className="mt-1"
+              className="w-28 border-gray-200"
             />
-          </div>
-          <div>
-            <Label className="text-sm text-gray-600">City</Label>
             <Input
               value={city}
               onChange={(e) => setCity(e.target.value)}
               disabled={!editing}
-              className="mt-1"
+              className="flex-1 border-gray-200"
             />
           </div>
+        </div>
 
-          {/* Country */}
-          <div>
-            <Label className="text-sm text-gray-600">Country</Label>
-            <Input
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              disabled={!editing}
-              className="mt-1"
-            />
-          </div>
+        {/* Country */}
+        <div className="grid grid-cols-[160px_1fr] items-center border-b border-gray-100 px-5 py-3">
+          <span className="text-sm text-gray-500">Country</span>
+          {editing ? (
+            <Select value={country} onValueChange={setCountry}>
+              <SelectTrigger className="max-w-sm border-gray-200">
+                <SelectValue placeholder="Select country" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="netherlands">Netherlands</SelectItem>
+                <SelectItem value="belgium">Belgium</SelectItem>
+                <SelectItem value="germany">Germany</SelectItem>
+                <SelectItem value="france">France</SelectItem>
+                <SelectItem value="united kingdom">United Kingdom</SelectItem>
+                <SelectItem value="spain">Spain</SelectItem>
+                <SelectItem value="italy">Italy</SelectItem>
+                <SelectItem value="portugal">Portugal</SelectItem>
+                <SelectItem value="austria">Austria</SelectItem>
+                <SelectItem value="switzerland">Switzerland</SelectItem>
+                <SelectItem value="pakistan">Pakistan</SelectItem>
+                <SelectItem value="united states">United States</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : (
+            <span className="text-sm text-gray-900 capitalize">
+              {country || "—"}
+            </span>
+          )}
+        </div>
 
-          {/* Latitude */}
-          <div>
-            <Label className="text-sm text-gray-600">Latitude</Label>
+        {/* Lat + Long */}
+        <div className="grid grid-cols-[160px_1fr] items-center border-b border-gray-100 px-5 py-3">
+          <span className="text-sm text-gray-500">Lat + Long</span>
+          <div className="flex items-center gap-2 max-w-sm">
             <Input
               value={latitude}
               onChange={(e) => setLatitude(e.target.value)}
               disabled={!editing}
-              className="mt-1"
-              placeholder="e.g. 51.4953"
+              className="w-36 border-gray-200"
+              placeholder="51.4953"
             />
-          </div>
-
-          {/* Longitude */}
-          <div>
-            <Label className="text-sm text-gray-600">Longitude</Label>
+            <span className="text-gray-300">,</span>
             <Input
               value={longitude}
               onChange={(e) => setLongitude(e.target.value)}
               disabled={!editing}
-              className="mt-1"
-              placeholder="e.g. 3.8737"
+              className="w-36 border-gray-200"
+              placeholder="3.8737"
             />
           </div>
+        </div>
 
-          {/* Email */}
-          <div>
-            <Label className="text-sm text-gray-600">Email</Label>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={!editing}
-              className="mt-1"
-            />
-          </div>
+        {/* Email */}
+        <div className="grid grid-cols-[160px_1fr] items-center border-b border-gray-100 px-5 py-3">
+          <span className="text-sm text-gray-500">Email</span>
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={!editing}
+            className="max-w-sm border-gray-200"
+          />
+        </div>
 
-          {/* Website */}
-          <div>
-            <Label className="text-sm text-gray-600">Website</Label>
-            <Input
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              disabled={!editing}
-              className="mt-1"
-            />
-          </div>
+        {/* Website */}
+        <div className="grid grid-cols-[160px_1fr] items-center border-b border-gray-100 px-5 py-3">
+          <span className="text-sm text-gray-500">Website</span>
+          <Input
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            disabled={!editing}
+            className="max-w-sm border-gray-200"
+          />
+        </div>
 
-          {/* Phone */}
-          <div>
-            <Label className="text-sm text-gray-600">Phone</Label>
+        {/* Phone */}
+        <div className="grid grid-cols-[160px_1fr] items-center border-b border-gray-100 px-5 py-3">
+          <span className="text-sm text-gray-500">Phone</span>
+          <div className="flex items-center gap-2 max-w-sm">
+            <span className="text-sm text-gray-400">📞</span>
             <Input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               disabled={!editing}
-              className="mt-1"
+              className="flex-1 border-gray-200"
             />
           </div>
+        </div>
 
-          {/* Price range */}
-          <div className="md:col-span-2">
-            <Label className="text-sm text-gray-600">Price range</Label>
-            <div className="flex flex-wrap items-center gap-3 mt-1">
-              <span className="text-sm text-gray-500">From</span>
+        {/* Price range */}
+        <div className="grid grid-cols-[160px_1fr] items-center border-b border-gray-100 px-5 py-3">
+          <span className="text-sm text-gray-500">Price range</span>
+          <div className="flex flex-wrap items-center gap-3 max-w-md">
+            {editing ? (
+              <Select value={priceRange} onValueChange={setPriceRange}>
+                <SelectTrigger className="w-32 border-gray-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="budget">Budget</SelectItem>
+                  <SelectItem value="mid-range">Mid-range</SelectItem>
+                  <SelectItem value="high-end">High-end</SelectItem>
+                  <SelectItem value="fine-dining">Fine dining</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
+              <span className="text-sm text-gray-900 capitalize">
+                {priceRange}
+              </span>
+            )}
+            <span className="text-sm text-gray-500">From</span>
+            <div className="flex items-center gap-1">
+              <span className="text-sm text-gray-400">&euro;</span>
               <Input
                 type="number"
                 step="0.01"
                 value={priceRangeFrom}
                 onChange={(e) => setPriceRangeFrom(e.target.value)}
                 disabled={!editing}
-                className="w-full sm:w-28"
+                className="w-24 border-gray-200"
                 placeholder="0.00"
               />
-              <span className="text-sm text-gray-500">To</span>
+            </div>
+            <span className="text-sm text-gray-500">To</span>
+            <div className="flex items-center gap-1">
+              <span className="text-sm text-gray-400">&euro;</span>
               <Input
                 type="number"
                 step="0.01"
                 value={priceRangeTo}
                 onChange={(e) => setPriceRangeTo(e.target.value)}
                 disabled={!editing}
-                className="w-full sm:w-28"
+                className="w-24 border-gray-200"
                 placeholder="0.00"
               />
             </div>
           </div>
+        </div>
 
-          {/* Guest sizes */}
-          <div className="md:col-span-2">
-            <Label className="text-sm text-gray-600">Guest sizes</Label>
-            <div className="flex flex-wrap items-center gap-3 mt-1">
-              <span className="text-sm text-gray-500">From</span>
-              <Input
-                type="number"
-                value={minGuestSize}
-                onChange={(e) => setMinGuestSize(e.target.value)}
-                disabled={!editing}
-                className="w-full sm:w-24"
-              />
-              <span className="text-sm text-gray-500">To</span>
-              <Input
-                type="number"
-                value={maxGuestSize}
-                onChange={(e) => setMaxGuestSize(e.target.value)}
-                disabled={!editing}
-                className="w-full sm:w-24"
-              />
-            </div>
+        {/* Guest sizes */}
+        <div className="grid grid-cols-[160px_1fr] items-center border-b border-gray-100 px-5 py-3">
+          <span className="text-sm text-gray-500">Guest sizes</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">From</span>
+            <Input
+              type="number"
+              value={minGuestSize}
+              onChange={(e) => setMinGuestSize(e.target.value)}
+              disabled={!editing}
+              className="w-20 border-gray-200"
+            />
+            <span className="text-sm text-gray-500">To</span>
+            <Input
+              type="number"
+              value={maxGuestSize}
+              onChange={(e) => setMaxGuestSize(e.target.value)}
+              disabled={!editing}
+              className="w-20 border-gray-200"
+            />
           </div>
+        </div>
 
-          {/* Target audience */}
-          <div className="md:col-span-2">
+        {/* Target audience */}
+        <div className="grid grid-cols-[160px_1fr] items-start px-5 py-3">
+          <span className="text-sm text-gray-500 pt-2">Target audience</span>
+          <div className="max-w-md">
             <BadgeArrayField
-              label="Target audience"
+              label=""
               values={targetAudience}
               onChange={setTargetAudience}
               editing={editing}
             />
           </div>
         </div>
+      </div>
 
-        {editing && (
-          <div className="flex justify-end mt-8 gap-3">
-            <Button variant="outline" onClick={handleCancel}>
-              Cancel
-            </Button>
-            <Button
-              className="bg-orange-500 hover:bg-orange-600 text-white"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Save changes
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      {editing && (
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={handleCancel}>
+            Cancel
+          </Button>
+          <Button
+            className="bg-orange-500 hover:bg-orange-600 text-white"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Save changes
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -681,186 +742,224 @@ function BusinessInformationTab({
   };
 
   return (
-    <Card className="bg-white border border-gray-200 shadow-sm">
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Business information
-          </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => (editing ? handleCancel() : setEditing(true))}
-            className="gap-1.5"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            {editing ? "Cancel" : "Edit"}
-          </Button>
+    <div className="space-y-5">
+      {/* Header with edit */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-gray-900">
+          Business Information
+        </h2>
+        <button
+          onClick={() => (editing ? handleCancel() : setEditing(true))}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+          {editing ? "Cancel" : "Edit"}
+        </button>
+      </div>
+
+      {/* Logo */}
+      <div className="flex items-center gap-4">
+        <span className="text-sm text-gray-500">Logo</span>
+        <div className="h-12 w-12 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden">
+          {provider.logo ? (
+            <img
+              src={provider.logo as string}
+              alt="Logo"
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <span className="text-gray-400 text-xs">Logo</span>
+          )}
+        </div>
+        {editing && (
+          <button className="text-xs text-orange-600 hover:text-orange-700 font-medium">
+            Change logo
+          </button>
+        )}
+      </div>
+
+      {/* Form fields */}
+      <div className="space-y-5">
+        {/* About your company */}
+        <div>
+          <Label className="text-sm text-gray-500 mb-1.5 block">
+            About your company
+          </Label>
+          <Textarea
+            value={aboutCompany}
+            onChange={(e) => setAboutCompany(e.target.value)}
+            disabled={!editing}
+            placeholder="Describe your company..."
+            className="min-h-[80px] border-gray-200"
+          />
         </div>
 
-        <div className="space-y-5">
-          {/* About your company */}
-          <div>
-            <Label className="text-sm text-gray-600">About your company</Label>
-            <Textarea
-              value={aboutCompany}
-              onChange={(e) => setAboutCompany(e.target.value)}
-              disabled={!editing}
-              className="mt-1 min-h-[80px]"
-            />
-          </div>
+        {/* What is this business? */}
+        <div>
+          <Label className="text-sm text-gray-500 mb-1.5 block">
+            What is the business?
+          </Label>
+          <Textarea
+            value={whatIsThisBusiness}
+            onChange={(e) => setWhatIsThisBusiness(e.target.value)}
+            disabled={!editing}
+            placeholder="what is this place?"
+            className="min-h-[70px] border-gray-200"
+          />
+        </div>
 
-          {/* What is this business? */}
-          <div>
-            <Label className="text-sm text-gray-600">
-              What is this business?
-            </Label>
-            <Textarea
-              value={whatIsThisBusiness}
-              onChange={(e) => setWhatIsThisBusiness(e.target.value)}
-              disabled={!editing}
-              className="mt-1 min-h-[80px]"
-            />
-          </div>
+        {/* What can I book here? */}
+        <div>
+          <Label className="text-sm text-gray-500 mb-1.5 block">
+            What can I book here?
+          </Label>
+          <Textarea
+            value={whatCanIBookHere}
+            onChange={(e) => setWhatCanIBookHere(e.target.value)}
+            disabled={!editing}
+            placeholder="what can be booked?"
+            className="min-h-[70px] border-gray-200"
+          />
+        </div>
 
-          {/* What can I book here? */}
-          <div>
-            <Label className="text-sm text-gray-600">
-              What can I book here?
-            </Label>
-            <Textarea
-              value={whatCanIBookHere}
-              onChange={(e) => setWhatCanIBookHere(e.target.value)}
-              disabled={!editing}
-              className="mt-1 min-h-[80px]"
-            />
-          </div>
+        {/* When should I recommend this? */}
+        <div>
+          <Label className="text-sm text-gray-500 mb-1.5 block">
+            When should I recommend this?
+          </Label>
+          <Textarea
+            value={whenShouldRecommend}
+            onChange={(e) => setWhenShouldRecommend(e.target.value)}
+            disabled={!editing}
+            placeholder="when/why should AI recommend it?"
+            className="min-h-[70px] border-gray-200"
+          />
+        </div>
 
-          {/* When should I recommend this? */}
-          <div>
-            <Label className="text-sm text-gray-600">
-              When should I recommend this?
-            </Label>
-            <Textarea
-              value={whenShouldRecommend}
-              onChange={(e) => setWhenShouldRecommend(e.target.value)}
-              disabled={!editing}
-              className="mt-1 min-h-[80px]"
-            />
-          </div>
-
-          {/* What can customers book here? (badges) */}
+        {/* What can customers book here? */}
+        <div>
+          <Label className="text-sm text-gray-500 mb-1.5 block">
+            What can customers book here?
+          </Label>
           <BadgeArrayField
-            label="What can customers book here?"
+            label=""
             values={whatCanCustomersBook}
             onChange={setWhatCanCustomersBook}
             editing={editing}
           />
+        </div>
 
-          {/* What is this place best for? (badges) */}
+        {/* What is this place best for? */}
+        <div>
+          <Label className="text-sm text-gray-500 mb-1.5 block">
+            What is this place best for?
+          </Label>
           <BadgeArrayField
-            label="What is this place best for?"
+            label=""
             values={bestFor}
             onChange={setBestFor}
             editing={editing}
           />
+        </div>
 
-          {/* Atmosphere / vibe (badges) */}
+        {/* Atmosphere / vibe */}
+        <div>
+          <Label className="text-sm text-gray-500 mb-1.5 block">
+            What is this place best for?
+          </Label>
+          <div className="text-xs text-gray-400 mb-1">
+            Atmosphere / vibe: Casual, Modern, Romantic, Trendy, Luxury, Traditional
+          </div>
           <BadgeArrayField
-            label="Atmosphere / vibe"
+            label=""
             values={atmosphere}
             onChange={setAtmosphere}
             editing={editing}
           />
-
-          {/* What makes this place unique? */}
-          <div>
-            <Label className="text-sm text-gray-600">
-              What makes this place unique?
-            </Label>
-            <Input
-              value={whatMakesUnique}
-              onChange={(e) => setWhatMakesUnique(e.target.value)}
-              disabled={!editing}
-              className="mt-1"
-            />
-          </div>
-
-          {/* When should customers choose you? */}
-          <div>
-            <Label className="text-sm text-gray-600">
-              When should customers choose you?
-            </Label>
-            <Input
-              value={whenShouldChoose}
-              onChange={(e) => setWhenShouldChoose(e.target.value)}
-              disabled={!editing}
-              className="mt-1"
-            />
-          </div>
-
-          {/* When should customers NOT choose you? */}
-          <div>
-            <Label className="text-sm text-gray-600">
-              When should customers NOT choose you?
-            </Label>
-            <Input
-              value={whenShouldNotChoose}
-              onChange={(e) => setWhenShouldNotChoose(e.target.value)}
-              disabled={!editing}
-              className="mt-1"
-            />
-          </div>
-
-          {/* Most popular dishes */}
-          <div>
-            <Label className="text-sm text-gray-600">
-              What are your most popular dishes?
-            </Label>
-            <Textarea
-              value={popularDishes}
-              onChange={(e) => setPopularDishes(e.target.value)}
-              disabled={!editing}
-              className="mt-1 min-h-[80px]"
-            />
-          </div>
         </div>
 
-        {editing && (
-          <div className="flex justify-end mt-8 gap-3">
-            <Button variant="outline" onClick={handleCancel}>
-              Cancel
-            </Button>
-            <Button
-              className="bg-orange-500 hover:bg-orange-600 text-white"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Save changes
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        {/* What makes this place unique? */}
+        <div>
+          <Label className="text-sm text-gray-500 mb-1.5 block">
+            What makes this place unique?
+          </Label>
+          <Input
+            value={whatMakesUnique}
+            onChange={(e) => setWhatMakesUnique(e.target.value)}
+            disabled={!editing}
+            className="border-gray-200"
+          />
+        </div>
+
+        {/* When should customers choose you? */}
+        <div>
+          <Label className="text-sm text-gray-500 mb-1.5 block">
+            When should customers choose you?
+          </Label>
+          <Input
+            value={whenShouldChoose}
+            onChange={(e) => setWhenShouldChoose(e.target.value)}
+            disabled={!editing}
+            className="border-gray-200"
+          />
+        </div>
+
+        {/* When should customers NOT choose you? */}
+        <div>
+          <Label className="text-sm text-gray-500 mb-1.5 block">
+            When should customers NOT choose you?
+          </Label>
+          <Input
+            value={whenShouldNotChoose}
+            onChange={(e) => setWhenShouldNotChoose(e.target.value)}
+            disabled={!editing}
+            className="border-gray-200"
+          />
+        </div>
+
+        {/* Most popular dishes */}
+        <div>
+          <Label className="text-sm text-gray-500 mb-1.5 block">
+            What are your most popular dishes?
+          </Label>
+          <Textarea
+            value={popularDishes}
+            onChange={(e) => setPopularDishes(e.target.value)}
+            disabled={!editing}
+            className="min-h-[80px] border-gray-200"
+          />
+        </div>
+      </div>
+
+      {editing && (
+        <div className="flex justify-end gap-3 pt-2">
+          <Button variant="outline" onClick={handleCancel}>
+            Cancel
+          </Button>
+          <Button
+            className="bg-orange-500 hover:bg-orange-600 text-white"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Save changes
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  Tab 3 -- Opening Hours                                             */
+/*  Tab 3 -- Opening Hours (read-only, data from Jimani)               */
 /* ------------------------------------------------------------------ */
 
 function OpeningHoursTab() {
-  const [selectedYear, setSelectedYear] = useState(2026);
-  const [selectedMonth, setSelectedMonth] = useState(0);
-  const [saving, setSaving] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
 
   // Fetch opening hours for selected year/month
-  const {
-    data: apiHours,
-    isLoading: hoursLoading,
-    mutate: mutateHours,
-  } = useSWR<OpeningHourEntry[]>(
+  const { data: apiHours, isLoading: hoursLoading } = useSWR<OpeningHourEntry[]>(
     `/api/providers/me/opening-hours?year=${selectedYear}&month=${selectedMonth}`,
     fetcher
   );
@@ -868,235 +967,126 @@ function OpeningHoursTab() {
   // Generate all days for the month and merge with API data
   const allDays = generateDaysForMonth(selectedYear, selectedMonth);
 
-  // Local editable state for opening hours
-  const [localHours, setLocalHours] = useState<
-    Map<string, { openTime: string; closeTime: string; isClosed: boolean }>
-  >(new Map());
-
-  // Rebuild local state when API data or month/year changes
-  useEffect(() => {
-    const apiMap = new Map<
-      string,
-      { openTime: string; closeTime: string; isClosed: boolean }
-    >();
-    if (apiHours && Array.isArray(apiHours)) {
-      for (const h of apiHours) {
-        // Normalize date to YYYY-MM-DD
-        const dateKey = h.date.substring(0, 10);
-        apiMap.set(dateKey, {
-          openTime: h.openTime || "",
-          closeTime: h.closeTime || "",
-          isClosed: h.isClosed,
-        });
-      }
-    }
-
-    const newMap = new Map<
-      string,
-      { openTime: string; closeTime: string; isClosed: boolean }
-    >();
-    for (const day of allDays) {
-      const existing = apiMap.get(day.date);
-      if (existing) {
-        newMap.set(day.date, existing);
-      } else {
-        newMap.set(day.date, { openTime: "08:00", closeTime: "21:30", isClosed: false });
-      }
-    }
-    setLocalHours(newMap);
-  }, [apiHours, selectedYear, selectedMonth]);
-
-  const updateDay = useCallback(
-    (
-      date: string,
-      field: "openTime" | "closeTime" | "isClosed",
-      value: string | boolean
-    ) => {
-      setLocalHours((prev) => {
-        const next = new Map(prev);
-        const current = next.get(date) || {
-          openTime: "08:00",
-          closeTime: "21:30",
-          isClosed: false,
-        };
-        next.set(date, { ...current, [field]: value });
-        return next;
+  // Build lookup map from API data
+  const hoursMap = new Map<
+    string,
+    { openTime: string; closeTime: string; isClosed: boolean }
+  >();
+  if (apiHours && Array.isArray(apiHours)) {
+    for (const h of apiHours) {
+      const dateKey = h.date.substring(0, 10);
+      hoursMap.set(dateKey, {
+        openTime: h.openTime || "",
+        closeTime: h.closeTime || "",
+        isClosed: h.isClosed,
       });
-    },
-    []
-  );
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const hours = allDays.map((day) => {
-        const entry = localHours.get(day.date) || {
-          openTime: "08:00",
-          closeTime: "21:30",
-          isClosed: false,
-        };
-        return {
-          date: day.date,
-          openTime: entry.isClosed ? null : entry.openTime,
-          closeTime: entry.isClosed ? null : entry.closeTime,
-          isClosed: entry.isClosed,
-        };
-      });
-
-      const res = await fetch("/api/providers/me/opening-hours", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hours }),
-      });
-      if (!res.ok) throw new Error("Failed to save");
-      toast.success("Opening hours saved successfully");
-      mutateHours();
-    } catch {
-      toast.error("Failed to save opening hours");
-    } finally {
-      setSaving(false);
     }
-  };
+  }
+
+  const SHORT_MONTHS = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
 
   return (
-    <Card className="bg-white border border-gray-200 shadow-sm">
-      <CardContent className="pt-6">
+    <div className="space-y-5">
+      <h2 className="text-base font-semibold text-gray-900">Opening Hours</h2>
 
-        <h2 className="text-lg font-semibold text-gray-900 mb-6">
-          Opening hours
-        </h2>
-
-        {/* Year selector */}
-        <div className="mb-4">
-          <Label className="text-sm text-gray-600 mb-2 block">Year</Label>
-          <div className="flex gap-2">
-            {[2026, 2027, 2028].map((year) => (
-              <Button
-                key={year}
-                variant={selectedYear === year ? "default" : "outline"}
-                size="sm"
-                className={
-                  selectedYear === year
-                    ? "bg-orange-500 hover:bg-orange-600 text-white"
-                    : ""
-                }
-                onClick={() => setSelectedYear(year)}
-              >
-                {year}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Month selector */}
-        <div className="mb-6">
-          <Label className="text-sm text-gray-600 mb-2 block">Month</Label>
-          <div className="flex flex-wrap gap-2">
-            {MONTHS.map((month, idx) => (
-              <Button
-                key={month}
-                variant={selectedMonth === idx ? "default" : "outline"}
-                size="sm"
-                className={
-                  selectedMonth === idx
-                    ? "bg-orange-500 hover:bg-orange-600 text-white"
-                    : ""
-                }
-                onClick={() => setSelectedMonth(idx)}
-              >
-                {month}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Daily list */}
-        {hoursLoading ? (
-          <div className="flex items-center justify-center py-12 text-gray-500">
-            <Loader2 className="h-5 w-5 animate-spin mr-2" />
-            Loading opening hours...
-          </div>
-        ) : (
-          <div className="border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
-            {/* Header */}
-            <div className="grid grid-cols-[minmax(120px,1.5fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(60px,0.5fr)] gap-2 sm:gap-4 px-3 sm:px-4 py-2.5 bg-gray-50 border-b border-gray-200 text-sm font-medium text-gray-600 min-w-[400px]">
-              <span>Date</span>
-              <span>Open from</span>
-              <span>Open until</span>
-              <span>Closed</span>
-            </div>
-
-            {/* Rows */}
-            <div className="divide-y divide-gray-100 max-h-[480px] overflow-y-auto">
-              {allDays.map((day) => {
-                const entry = localHours.get(day.date) || {
-                  openTime: "08:00",
-                  closeTime: "21:30",
-                  isClosed: false,
-                };
-                return (
-                  <div
-                    key={day.date}
-                    className={`grid grid-cols-[minmax(120px,1.5fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(60px,0.5fr)] gap-2 sm:gap-4 px-3 sm:px-4 py-2.5 items-center text-sm min-w-[400px] ${
-                      entry.isClosed ? "bg-gray-50/60 text-gray-400" : ""
-                    }`}
-                  >
-                    <span className={!entry.isClosed ? "text-gray-900" : ""}>
-                      <span className="font-medium">{day.dayName.slice(0, 3)}</span>{" "}
-                      <span className="text-gray-500 text-xs sm:text-sm">{day.date}</span>
-                    </span>
-
-                    {!entry.isClosed ? (
-                      <>
-                        <Input
-                          type="time"
-                          value={entry.openTime}
-                          onChange={(e) =>
-                            updateDay(day.date, "openTime", e.target.value)
-                          }
-                          className="h-8 w-full max-w-[7rem] text-sm"
-                        />
-                        <Input
-                          type="time"
-                          value={entry.closeTime}
-                          onChange={(e) =>
-                            updateDay(day.date, "closeTime", e.target.value)
-                          }
-                          className="h-8 w-full max-w-[7rem] text-sm"
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-gray-400 italic">closed</span>
-                        <span />
-                      </>
-                    )}
-
-                    <Switch
-                      checked={entry.isClosed}
-                      onCheckedChange={(checked) =>
-                        updateDay(day.date, "isClosed", checked)
-                      }
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-end mt-6">
-          <Button
-            className="bg-orange-500 hover:bg-orange-600 text-white"
-            onClick={handleSave}
-            disabled={saving}
+      {/* Year selector */}
+      <div className="flex flex-wrap items-center gap-2">
+        {[2025, 2026, 2027].map((year) => (
+          <button
+            key={year}
+            onClick={() => setSelectedYear(year)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              selectedYear === year
+                ? "bg-orange-500 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
           >
-            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Save opening hours
-          </Button>
+            {year}
+          </button>
+        ))}
+      </div>
+
+      {/* Month selector */}
+      <div className="flex flex-wrap gap-2">
+        {SHORT_MONTHS.map((month, idx) => (
+          <button
+            key={month}
+            onClick={() => setSelectedMonth(idx)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              selectedMonth === idx
+                ? "bg-orange-500 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            {month}
+          </button>
+        ))}
+      </div>
+
+      {/* Table */}
+      {hoursLoading ? (
+        <div className="flex items-center justify-center py-12 text-gray-500">
+          <Loader2 className="h-5 w-5 animate-spin mr-2" />
+          Loading opening hours...
         </div>
-      </CardContent>
-    </Card>
+      ) : (
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          {/* Header */}
+          <div className="grid grid-cols-[1fr_120px_120px] px-5 py-3 bg-gray-50 border-b border-gray-200 text-sm font-medium text-gray-500">
+            <span>Datum</span>
+            <span>Open van</span>
+            <span>Open tot</span>
+          </div>
+
+          {/* Rows */}
+          <div className="divide-y divide-gray-100">
+            {allDays.map((day) => {
+              const entry = hoursMap.get(day.date);
+              const isClosed = !entry || entry.isClosed;
+
+              return (
+                <div
+                  key={day.date}
+                  className={`grid grid-cols-[1fr_120px_120px] px-5 py-2.5 items-center text-sm ${
+                    isClosed ? "text-gray-400" : "text-gray-900"
+                  }`}
+                >
+                  <span>
+                    <span className="font-medium lowercase">
+                      {day.dayName.toLowerCase()}
+                    </span>{" "}
+                    <span className="text-gray-500">
+                      {parseInt(day.date.split("-")[2])}{" "}
+                      {MONTHS[parseInt(day.date.split("-")[1]) - 1]?.toLowerCase()}
+                    </span>
+                  </span>
+
+                  {isClosed ? (
+                    <>
+                      <span className="italic text-gray-400">closed</span>
+                      <span />
+                    </>
+                  ) : (
+                    <>
+                      <span>{entry!.openTime}</span>
+                      <span>{entry!.closeTime}</span>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Read-only notice */}
+      <p className="text-xs text-gray-400 text-center">
+        Opening hours are synced from Jimani and cannot be edited here.
+      </p>
+    </div>
   );
 }
 
@@ -1129,41 +1119,51 @@ export default function SettingsPage() {
     );
   }
 
+  const [activeTab, setActiveTab] = useState<"standard" | "business" | "hours">(
+    "standard"
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-500 mt-1">
-          Manage your business profile and preferences
-        </p>
+      </div>
+
+      {/* Underline tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="flex gap-8">
+          {[
+            { key: "standard" as const, label: "Standard information" },
+            { key: "business" as const, label: "Business information" },
+            { key: "hours" as const, label: "Opening hours" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.key
+                  ? "border-orange-500 text-orange-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
       </div>
 
       {/* Jimani banner */}
-      <JimaniBanner />
+      <JimaniBanner provider={provider} />
 
-      {/* Tabs */}
-      <Tabs defaultValue="standard" className="w-full">
-        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-          <TabsList className="mb-4 w-max sm:w-auto">
-            <TabsTrigger value="standard">Standard information</TabsTrigger>
-            <TabsTrigger value="business">Business information</TabsTrigger>
-            <TabsTrigger value="hours">Opening hours</TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="standard">
-          <StandardInformationTab provider={provider} mutate={mutate} />
-        </TabsContent>
-
-        <TabsContent value="business">
-          <BusinessInformationTab provider={provider} mutate={mutate} />
-        </TabsContent>
-
-        <TabsContent value="hours">
-          <OpeningHoursTab />
-        </TabsContent>
-      </Tabs>
+      {/* Tab content */}
+      {activeTab === "standard" && (
+        <StandardInformationTab provider={provider} mutate={mutate} />
+      )}
+      {activeTab === "business" && (
+        <BusinessInformationTab provider={provider} mutate={mutate} />
+      )}
+      {activeTab === "hours" && <OpeningHoursTab />}
     </div>
   );
 }

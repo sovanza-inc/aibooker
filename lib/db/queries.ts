@@ -3,8 +3,24 @@ import { db } from './drizzle';
 import { activityLogs, teamMembers, teams, users } from './schema';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/session';
+import { auth } from '@/lib/auth/auth-config';
 
 export async function getUser() {
+  // Primary: use NextAuth session
+  const nextAuthSession = await auth();
+  if (nextAuthSession?.user?.email) {
+    const user = await db
+      .select()
+      .from(users)
+      .where(and(eq(users.email, nextAuthSession.user.email), isNull(users.deletedAt)))
+      .limit(1);
+
+    if (user.length > 0) {
+      return user[0];
+    }
+  }
+
+  // Fallback: legacy custom session cookie
   const sessionCookie = (await cookies()).get('session');
   if (!sessionCookie || !sessionCookie.value) {
     return null;
@@ -14,7 +30,7 @@ export async function getUser() {
   if (
     !sessionData ||
     !sessionData.user ||
-    typeof sessionData.user.id !== 'number'
+    typeof sessionData.user.id !== 'string'
   ) {
     return null;
   }
@@ -47,7 +63,7 @@ export async function getTeamByStripeCustomerId(customerId: string) {
 }
 
 export async function updateTeamSubscription(
-  teamId: number,
+  teamId: string,
   subscriptionData: {
     stripeSubscriptionId: string | null;
     stripeProductId: string | null;
@@ -64,7 +80,7 @@ export async function updateTeamSubscription(
     .where(eq(teams.id, teamId));
 }
 
-export async function getUserWithTeam(userId: number) {
+export async function getUserWithTeam(userId: string) {
   const result = await db
     .select({
       user: users,

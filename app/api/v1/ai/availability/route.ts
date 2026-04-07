@@ -5,7 +5,7 @@ import { validateApiKey, getProviderAvailability } from '@/lib/ai/queries';
 import { checkRateLimit } from '@/lib/ai/rate-limit';
 
 const availabilitySchema = z.object({
-  provider_id: z.number().int().positive(),
+  provider_id: z.string().uuid('provider_id must be a valid UUID'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
   time: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be HH:MM').optional(),
   party_size: z.number().int().min(1).max(50).optional(),

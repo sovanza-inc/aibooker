@@ -4,7 +4,7 @@ import { getAuthenticatedUser } from '@/lib/auth/api-auth';
 import { z } from 'zod';
 
 const actionSchema = z.object({
-  bookingId: z.number().int().positive(),
+  bookingId: z.string().uuid(),
   action: z.enum(['confirm', 'cancel']),
 });
 

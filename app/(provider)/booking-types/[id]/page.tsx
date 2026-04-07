@@ -194,7 +194,7 @@ export default function BookingTypeEditPage() {
   const menuInputRef = useRef<HTMLInputElement>(null);
 
   const bookingType = Array.isArray(data)
-    ? data.find((bt) => bt.id === parseInt(params.id))
+    ? data.find((bt) => bt.id === params.id)
     : undefined;
 
   const [form, setForm] = useState<FormState>({
@@ -617,7 +617,7 @@ export default function BookingTypeEditPage() {
 
       {/* Opening hours tab */}
       {activeTab === 'hours' && (
-        <OpeningHoursTab bookingTypeId={parseInt(params.id)} name={form.name} />
+        <OpeningHoursTab bookingTypeId={params.id} name={form.name} />
       )}
     </div>
   );
@@ -627,7 +627,7 @@ function OpeningHoursTab({
   bookingTypeId,
   name,
 }: {
-  bookingTypeId: number;
+  bookingTypeId: string;
   name: string;
 }) {
   const [year, setYear] = useState(new Date().getFullYear());

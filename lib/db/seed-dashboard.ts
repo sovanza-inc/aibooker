@@ -71,7 +71,7 @@ async function main() {
     { firstName: 'Jan', lastName: 'Hendriks', email: 'jan@example.com', phone: '+31612345008' },
   ];
 
-  const leadIds: number[] = [];
+  const leadIds: string[] = [];
   for (const c of customers) {
     const existing = await db.select().from(schema.customerLeads).where(eq(schema.customerLeads.email, c.email)).limit(1);
     if (existing.length > 0) {
